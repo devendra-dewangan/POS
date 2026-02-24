@@ -1,12 +1,10 @@
 using POS.Data;
-using POS.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 // Add SQLite database context
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -14,58 +12,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 app.UseHttpsRedirection();
-
-// Initialize database
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
-    SeedData(context);
-}
-
 app.Run();
 
-void SeedData(AppDbContext context)
-{
-    if (!context.Products.Any())
-    {
-        var products = new[]
-        {
-            new Product { 
-                Name = "Laptop", 
-                ProductName = "Gaming Laptop", 
-                ProductCode = "LT-GM-001", 
-                Barcode = "1234567890123",
-                Price = 50000, 
-                Stock = 10.0m 
-            },
-            new Product { 
-                Name = "Mouse", 
-                ProductName = "Wireless Mouse", 
-                ProductCode = "MS-WL-002", 
-                Barcode = "2345678901234",
-                Price = 500, 
-                Stock = 50.0m 
-            },
-            new Product { 
-                Name = "Keyboard", 
-                ProductName = "Mechanical Keyboard", 
-                ProductCode = "KB-MC-003", 
-                Barcode = "3456789012345",
-                Price = 1000, 
-                Stock = 30.0m 
-            }
-        };
-        
-        context.Products.AddRange(products);
-        context.SaveChanges();
-    }
-}

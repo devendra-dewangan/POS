@@ -48,3 +48,16 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Entity Framework migration files (keep these in version control)
+# Note: Migration files should typically be tracked, but exclude any sensitive data
+# Migrations/
+# !Migrations/*.cs
+# !Migrations/*.Designer.cs
+
+# Exclude migration snapshots if they contain sensitive information
+Migrations/*.Designer.cs
+
+# Exclude any backup migration files
+*_backup.cs
+*_old.cs
