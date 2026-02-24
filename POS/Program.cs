@@ -39,9 +39,30 @@ void SeedData(AppDbContext context)
     {
         var products = new[]
         {
-            new Product { Name = "Laptop", Price = 50000, Stock = 10 },
-            new Product { Name = "Mouse", Price = 500, Stock = 50 },
-            new Product { Name = "Keyboard", Price = 1000, Stock = 30 }
+            new Product { 
+                Name = "Laptop", 
+                ProductName = "Gaming Laptop", 
+                ProductCode = "LT-GM-001", 
+                Barcode = "1234567890123",
+                Price = 50000, 
+                Stock = 10 
+            },
+            new Product { 
+                Name = "Mouse", 
+                ProductName = "Wireless Mouse", 
+                ProductCode = "MS-WL-002", 
+                Barcode = "2345678901234",
+                Price = 500, 
+                Stock = 50 
+            },
+            new Product { 
+                Name = "Keyboard", 
+                ProductName = "Mechanical Keyboard", 
+                ProductCode = "KB-MC-003", 
+                Barcode = "3456789012345",
+                Price = 1000, 
+                Stock = 30 
+            }
         };
         
         context.Products.AddRange(products);

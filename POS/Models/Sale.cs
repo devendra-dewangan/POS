@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace POS.Models
 {
@@ -7,13 +8,14 @@ namespace POS.Models
         public int Id { get; set; }
         
         [Required]
-        public int ProductId { get; set; }
-        
-        public Product? Product { get; set; }
+        [StringLength(50)]
+        public string InvoiceNumber { get; set; } = string.Empty;
         
         [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
-        public int Quantity { get; set; }
+        public DateTime InvoiceDate { get; set; }
+        
+        [JsonIgnore]
+        public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
         
         [Required]
         public decimal TotalAmount { get; set; }

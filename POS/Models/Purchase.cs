@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace POS.Models
 {
@@ -7,22 +8,18 @@ namespace POS.Models
         public int Id { get; set; }
         
         [Required]
-        public int ProductId { get; set; }
+        public int SupplierId { get; set; }
         
-        public Product? Product { get; set; }
-        
-        [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
-        public int Quantity { get; set; }
+        public Supplier? Supplier { get; set; }
         
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Unit price must be a positive value")]
-        public decimal UnitPrice { get; set; }
-        
-        [Required]
-        public decimal TotalAmount { get; set; }
+        [StringLength(50)]
+        public string InvoiceNumber { get; set; } = string.Empty;
         
         [Required]
         public DateTime PurchaseDate { get; set; }
+        
+        [JsonIgnore]
+        public ICollection<Batch> Batches { get; set; } = new List<Batch>();
     }
 }
