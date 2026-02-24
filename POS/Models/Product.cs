@@ -30,8 +30,8 @@ namespace POS.Models
         public decimal Price { get; set; }
         
         [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Stock must be a non-negative value")]
-        public int Stock { get; set; }
+        [Range(0, double.MaxValue, ErrorMessage = "Stock must be a non-negative value")]
+        public decimal Stock { get; set; }
         
         [JsonIgnore]
         public ICollection<Sale> Sales { get; set; } = new List<Sale>();

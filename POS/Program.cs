@@ -45,7 +45,7 @@ void SeedData(AppDbContext context)
                 ProductCode = "LT-GM-001", 
                 Barcode = "1234567890123",
                 Price = 50000, 
-                Stock = 10 
+                Stock = 10.0m 
             },
             new Product { 
                 Name = "Mouse", 
@@ -53,7 +53,7 @@ void SeedData(AppDbContext context)
                 ProductCode = "MS-WL-002", 
                 Barcode = "2345678901234",
                 Price = 500, 
-                Stock = 50 
+                Stock = 50.0m 
             },
             new Product { 
                 Name = "Keyboard", 
@@ -61,7 +61,7 @@ void SeedData(AppDbContext context)
                 ProductCode = "KB-MC-003", 
                 Barcode = "3456789012345",
                 Price = 1000, 
-                Stock = 30 
+                Stock = 30.0m 
             }
         };
         
