@@ -1,0 +1,72 @@
+Invoice No.
+Invoice Date
+Tax Type
+Supplier's Invoice No.
+Supplier's Invoice Date
+Supplier Name
+State
+GSTIN
+Product Name
+HSN Code
+Purchase Rate
+Qty.
+UOM
+Discount %
+Discount
+CGST %
+CGST
+SGST %
+SGST/UTGST
+IGST %
+IGST
+CESS %
+CESS
+Total Amount
+Reverse Charges
+Product Code
+Barcode
+Colour
+Size
+Info
+Batch/Serial
+Mfg Date
+Exp Date
+IMEI-1
+IMEI-2
+
+
+----------------
+Sales
+
+Invoice No.
+Invoice Date
+Tax Type
+Customer Name
+State
+GSTIN/UID
+Product Name
+HSN Code
+Sales Rate
+Qty.
+UOM
+Discount %
+Discount
+CGST %
+CGST
+SGST %
+SGST/UTGST
+IGST %
+IGST
+CESS %
+CESS
+Total Amount
+Product Code
+Barcode
+IMEI(1)
+IMEI(2)
+Description
+Batch/Serial
+Mfg Date
+Exp Date
+Size
+Colour
