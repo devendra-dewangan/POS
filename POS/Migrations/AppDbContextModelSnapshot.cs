@@ -29,10 +29,16 @@ namespace POS.Migrations
                     b.Property<int?>("ProductId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("PurchaseId")
+                    b.Property<int?>("PurchaseId")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("PurchaseRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PurchaseStock")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaleRate")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Stock")
@@ -47,6 +53,22 @@ namespace POS.Migrations
                     b.ToTable("Batches");
                 });
 
+            modelBuilder.Entity("POS.Models.Buyer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Buyers");
+                });
+
             modelBuilder.Entity("POS.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -58,14 +80,6 @@ namespace POS.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("ProductCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -75,9 +89,6 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
-
-                    b.Property<decimal>("Stock")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -95,9 +106,6 @@ namespace POS.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime>("PurchaseDate")
                         .HasColumnType("TEXT");
 
@@ -105,8 +113,6 @@ namespace POS.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
 
                     b.HasIndex("SupplierId");
 
@@ -117,6 +123,9 @@ namespace POS.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BuyerId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("InvoiceDate")
@@ -138,6 +147,8 @@ namespace POS.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BuyerId");
+
                     b.HasIndex("ProductId");
 
                     b.ToTable("Sales");
@@ -149,7 +160,7 @@ namespace POS.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ProductId")
+                    b.Property<int>("BatchId")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("Quantity")
@@ -166,7 +177,7 @@ namespace POS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("SaleId");
 
@@ -191,25 +202,23 @@ namespace POS.Migrations
 
             modelBuilder.Entity("POS.Models.Batch", b =>
                 {
-                    b.HasOne("POS.Models.Product", null)
+                    b.HasOne("POS.Models.Product", "Product")
                         .WithMany("Batches")
-                        .HasForeignKey("ProductId");
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("POS.Models.Purchase", "Purchase")
                         .WithMany("Batches")
                         .HasForeignKey("PurchaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
 
                     b.Navigation("Purchase");
                 });
 
             modelBuilder.Entity("POS.Models.Purchase", b =>
                 {
-                    b.HasOne("POS.Models.Product", null)
-                        .WithMany("Purchases")
-                        .HasForeignKey("ProductId");
-
                     b.HasOne("POS.Models.Supplier", "Supplier")
                         .WithMany("Purchases")
                         .HasForeignKey("SupplierId")
@@ -221,16 +230,24 @@ namespace POS.Migrations
 
             modelBuilder.Entity("POS.Models.Sale", b =>
                 {
+                    b.HasOne("POS.Models.Buyer", "Buyer")
+                        .WithMany("Sales")
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("POS.Models.Product", null)
                         .WithMany("Sales")
                         .HasForeignKey("ProductId");
+
+                    b.Navigation("Buyer");
                 });
 
             modelBuilder.Entity("POS.Models.SaleItem", b =>
                 {
-                    b.HasOne("POS.Models.Product", "Product")
+                    b.HasOne("POS.Models.Batch", "Batch")
                         .WithMany()
-                        .HasForeignKey("ProductId")
+                        .HasForeignKey("BatchId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -240,16 +257,19 @@ namespace POS.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Product");
+                    b.Navigation("Batch");
 
                     b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("POS.Models.Buyer", b =>
+                {
+                    b.Navigation("Sales");
                 });
 
             modelBuilder.Entity("POS.Models.Product", b =>
                 {
                     b.Navigation("Batches");
-
-                    b.Navigation("Purchases");
 
                     b.Navigation("Sales");
                 });

@@ -14,6 +14,10 @@ namespace POS.Models
         [Required]
         public DateTime InvoiceDate { get; set; }
         
+        [Required]
+        [Range(0, double.MaxValue, ErrorMessage = "Total amount must be a non-negative value")]
+        public decimal TotalAmount { get; set; }
+        
         [JsonIgnore]
         public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
         

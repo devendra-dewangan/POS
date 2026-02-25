@@ -34,6 +34,7 @@ namespace POS.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.InvoiceDate).IsRequired();
+                entity.Property(e => e.TotalAmount).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.SaleDate).IsRequired();
                 entity.Property(e => e.BuyerId).IsRequired();
                 entity.HasOne(e => e.Buyer)
@@ -78,13 +79,19 @@ namespace POS.Data
             modelBuilder.Entity<Batch>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Product)
+                      .WithMany(p => p.Batches)
+                      .HasForeignKey(e => e.ProductId)
+                      .OnDelete(DeleteBehavior.SetNull); // Allow null ProductId for empty batches
                 entity.HasOne(e => e.Purchase)
                       .WithMany(p => p.Batches)
-                      .HasForeignKey(e => e.PurchaseId);
+                      .HasForeignKey(e => e.PurchaseId)
+                      .OnDelete(DeleteBehavior.SetNull); // Allow null PurchaseId
                 entity.Property(e => e.Stock).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.PurchaseStock).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.PurchaseRate).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.MRP).IsRequired().HasColumnType("decimal(18,2)");
+                entity.Property(e => e.SaleRate).IsRequired().HasColumnType("decimal(18,2)");
             });
 
             // Configure Buyer entity
