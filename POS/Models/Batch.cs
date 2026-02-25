@@ -16,6 +16,11 @@ namespace POS.Models
         public decimal Stock { get; set; }
         
         [Required]
+        [Range(0, double.MaxValue, ErrorMessage = "Purchase Stock must be a non-negative value")]
+        [Display(Name = "Purchase Stock")]
+        public decimal PurchaseStock { get; set; }
+        
+        [Required]
         [Range(0, double.MaxValue, ErrorMessage = "Purchase Rate must be a positive value")]
         [Display(Name = "Purchase Rate")]
         public decimal PurchaseRate { get; set; }

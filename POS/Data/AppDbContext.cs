@@ -15,6 +15,7 @@ namespace POS.Data
         public DbSet<Purchase> Purchases { get; set; }
         public DbSet<Batch> Batches { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
+        public DbSet<Buyer> Buyers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,12 +23,9 @@ namespace POS.Data
             modelBuilder.Entity<Product>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ProductName).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.ProductCode).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Barcode).HasMaxLength(100);
-                entity.Property(e => e.Price).IsRequired().HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Stock).IsRequired().HasColumnType("decimal(18,2)");
             });
 
             // Configure Sale entity
@@ -36,8 +34,11 @@ namespace POS.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.InvoiceDate).IsRequired();
-                entity.Property(e => e.TotalAmount).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.SaleDate).IsRequired();
+                entity.Property(e => e.BuyerId).IsRequired();
+                entity.HasOne(e => e.Buyer)
+                      .WithMany(b => b.Sales)
+                      .HasForeignKey(e => e.BuyerId);
             });
 
             // Configure SaleItem entity
@@ -47,9 +48,9 @@ namespace POS.Data
                 entity.HasOne(e => e.Sale)
                       .WithMany(s => s.SaleItems)
                       .HasForeignKey(e => e.SaleId);
-                entity.HasOne(e => e.Product)
+                entity.HasOne(e => e.Batch)
                       .WithMany()
-                      .HasForeignKey(e => e.ProductId);
+                      .HasForeignKey(e => e.BatchId);
                 entity.Property(e => e.Quantity).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.UnitPrice).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.TotalAmount).IsRequired().HasColumnType("decimal(18,2)");
@@ -81,8 +82,16 @@ namespace POS.Data
                       .WithMany(p => p.Batches)
                       .HasForeignKey(e => e.PurchaseId);
                 entity.Property(e => e.Stock).IsRequired().HasColumnType("decimal(18,2)");
+                entity.Property(e => e.PurchaseStock).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.PurchaseRate).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.MRP).IsRequired().HasColumnType("decimal(18,2)");
+            });
+
+            // Configure Buyer entity
+            modelBuilder.Entity<Buyer>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             });
 
             base.OnModelCreating(modelBuilder);

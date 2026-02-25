@@ -12,9 +12,9 @@ namespace POS.Models
         public Sale? Sale { get; set; }
         
         [Required]
-        public int ProductId { get; set; }
+        public int BatchId { get; set; }
         
-        public Product? Product { get; set; }
+        public Batch? Batch { get; set; }
         
         [Required]
         [Range(0.001, double.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
