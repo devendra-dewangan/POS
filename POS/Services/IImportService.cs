@@ -1,10 +1,11 @@
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace POS.Services
 {
     public interface IImportService
     {
-        Task<bool> ImportPurchaseDataAsync(string filePath);
-        Task<bool> ImportSaleDataAsync(string filePath);
+        Task<bool> ImportPurchaseDataAsync(IFormFile file);
+        Task<bool> ImportSaleDataAsync(IFormFile file);
     }
 }
