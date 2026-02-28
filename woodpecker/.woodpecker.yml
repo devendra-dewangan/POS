@@ -39,7 +39,7 @@ steps:
         evaluate: STAGE == "docker" || STAGE == "push" || STAGE == "all"
 
   docker-push:
-    image: woodpeckerci/plugin-docker
+    image: woodpeckerci/plugin-docker-buildx
     depends_on: [ docker-build ]
     settings:
       repo: reg-devdew.chub-beta.ts.net/pos-app
