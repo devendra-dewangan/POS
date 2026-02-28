@@ -42,7 +42,7 @@ steps:
     image: woodpeckerci/plugin-docker
     depends_on: [ docker-build ]
     settings:
-      repo: registry.yourdomain.com/pos-app
+      repo: reg-devdew.chub-beta.ts.net/pos-app
       tags:
         - ${CI_COMMIT_SHA:0:7}
     when:
