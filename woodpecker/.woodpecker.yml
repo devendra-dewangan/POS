@@ -25,7 +25,7 @@ steps:
 
   docker-build:
     image: docker:24
-    depends_on: [ test ]
+    depends_on: [ build ]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
@@ -40,6 +40,7 @@ steps:
 
   docker-push:
     image: woodpeckerci/plugin-docker
+    depends_on: [ docker-build ]
     settings:
       repo: registry.yourdomain.com/pos-app
       tags:
