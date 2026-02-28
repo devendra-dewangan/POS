@@ -39,16 +39,11 @@ steps:
         evaluate: STAGE == "docker" || STAGE == "push" || STAGE == "all"
 
   docker-push:
-    image: docker:24
-    depends_on: [ docker-build ]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    commands:
-      - echo "Running Docker Push Stage"
-      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
-      - echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
-      - docker tag pos-app:$SHORT_SHA $DOCKER_REGISTRY/pos-app:$SHORT_SHA
-      - docker push $DOCKER_REGISTRY/pos-app:$SHORT_SHA
+    image: woodpeckerci/plugin-docker
+    settings:
+      repo: registry.yourdomain.com/pos-app
+      tags:
+        - ${CI_COMMIT_SHA:0:7}
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
