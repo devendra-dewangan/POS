@@ -9,7 +9,7 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "build" || STAGE == "all"
+        evaluate: STAGE == "build" || STAGE == "all" || STAGE == "push"
 
   test:
     image: mcr.microsoft.com/dotnet/sdk:10.0
