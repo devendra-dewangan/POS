@@ -1,88 +1,56 @@
-# Woodpecker CI Pipeline for ASP.NET Core Web API
-# This pipeline provides comprehensive CI/CD for the POS application
-
 steps:
-  # Build step - restore packages and build the application
-  - name: build
+  build:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     commands:
-      - echo "Building ASP.NET Core application..."
+      - echo "Running Build Stage"
       - dotnet restore POS/POS.csproj
       - dotnet build POS/POS.csproj --configuration Release --no-restore
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "build"
 
-  # Test step - run tests if they exist
-  - name: test
+  test:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on: [ build ]
     commands:
-      - echo "Running tests..."
-      - dotnet test POS/POS.csproj --configuration Release --no-build --logger trx
+      - echo "Running Test Stage"
+      - dotnet test POS/POS.csproj --configuration Release --no-build
     when:
-      status: [success]
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "test"
 
-  # Lint step - check code style and formatting
-  - name: lint
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+  docker-build:
+    image: docker:24
+    depends_on: [ test ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - echo "Checking code style and formatting..."
-      - dotnet format --verify-no-changes --verbosity normal
+      - echo "Running Docker Build Stage"
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - docker build -t pos-app:$SHORT_SHA .
     when:
-      status: [success]
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "docker"
 
-  # Security scan step - scan for vulnerabilities
-  - name: security-scan
-    image: owasp/dependency-check:latest
+  docker-push:
+    image: docker:24
+    depends_on: [ docker-build ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - echo "Scanning for security vulnerabilities..."
-      - /usr/share/dependency-check/bin/dependency-check.sh --project "POS-Application" --scan ./ --format JSON --out ./dependency-check-report.json
-      - /usr/share/dependency-check/bin/dependency-check.sh --project "POS-Application" --scan ./ --format HTML --out ./dependency-check-report.html
+      - echo "Running Docker Push Stage"
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
+      - docker tag pos-app:$SHORT_SHA $DOCKER_REGISTRY/pos-app:$SHORT_SHA
+      - docker push $DOCKER_REGISTRY/pos-app:$SHORT_SHA
     when:
-      status: [success]
-
-  # Publish step - publish the application for deployment
-  - name: publish
-    image: mcr.microsoft.com/dotnet/sdk:10.0
-    commands:
-      - echo "Publishing application..."
-      - dotnet publish POS/POS.csproj --configuration Release --output ./publish --no-build
-    when:
-      status: [success]
-
-  # Docker build step - build container image
-  - name: docker-build
-    image: docker:20.10.16
-    commands:
-      - echo "Building Docker image..."
-      - docker build -t pos-application:${DRONE_COMMIT_SHA:0:7} .
-      - docker tag pos-application:${DRONE_COMMIT_SHA:0:7} pos-application:latest
-    when:
-      status: [success]
-
-  # Docker push step - push image to registry
-  - name: docker-push
-    image: docker:20.10.16
-    commands:
-      - echo "Pushing Docker image to registry..."
-      - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-      - docker tag pos-application:${DRONE_COMMIT_SHA:0:7} ${DOCKER_REGISTRY}/pos-application:${DRONE_COMMIT_SHA:0:7}
-      - docker tag pos-application:${DRONE_COMMIT_SHA:0:7} ${DOCKER_REGISTRY}/pos-application:latest
-      - docker push ${DOCKER_REGISTRY}/pos-application:${DRONE_COMMIT_SHA:0:7}
-      - docker push ${DOCKER_REGISTRY}/pos-application:latest
-    when:
-      status: [success]
-      event: [push]
-
-  # Manual deployment stage - can be triggered manually
-  - name: manual-deploy
-    image: docker:20.10.16
-    commands:
-      - echo "Manual deployment triggered..."
-      - echo "Deploying to production environment..."
-      - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-      - docker pull ${DOCKER_REGISTRY}/pos-application:latest
-      - docker stop pos-application || true
-      - docker rm pos-application || true
-      - docker run -d --name pos-application -p 80:80 ${DOCKER_REGISTRY}/pos-application:latest
-    when:
-      status: [success]
-      event: [manual]
-
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "push"
