@@ -9,7 +9,7 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "build"
+        evaluate: STAGE == "build" || STAGE == "all"
 
   test:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -21,7 +21,7 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "test"
+        evaluate: STAGE == "test" || STAGE == "all"
 
   docker-build:
     image: docker:24
@@ -36,7 +36,7 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "docker"
+        evaluate: STAGE == "docker" || STAGE == "push" || STAGE == "all"
 
   docker-push:
     image: docker:24
@@ -53,4 +53,4 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "push"
+        evaluate: STAGE == "push" || STAGE == "all"
