@@ -51,12 +51,15 @@ steps:
     depends_on: [ docker-push ]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
     commands:
-      
-      
+      - echo "$DOCKER_PASSWORD" | docker login reg-devdew.chub-beta.ts.net -u "$DOCKER_USERNAME" --password-stdin
       - cd $CI_WORKSPACE
-      - docker compose pull
-      - docker compose up -d --force-recreate --remove-orphans
+      - docker compose up -d --force-recreate --pull always --remove-orphans
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
