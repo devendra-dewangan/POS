@@ -30,10 +30,10 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "Logging into registry"
-      - echo "$DOCKER_PASSWORD" | docker login host.docker.internal:81 -u "$DOCKER_USERNAME" --password-stdin
+      - echo "$DOCKER_PASSWORD" | docker login nginx:81 -u "$DOCKER_USERNAME" --password-stdin
       - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
-      - docker build -t host.docker.internal:81/pos-app:$SHORT_SHA -f Dockerfile .
-      - docker push host.docker.internal:81/pos-app:$SHORT_SHA
+      - docker build -t nginx:81/pos-app:$SHORT_SHA -f Dockerfile .
+      - docker push nginx:81/pos-app:$SHORT_SHA
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
