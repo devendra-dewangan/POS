@@ -22,29 +22,20 @@ steps:
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
         evaluate: STAGE == "test" || STAGE == "all"
-
-  docker-build:
-    image: docker:24
-    depends_on: [ build ]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    commands:
-      - echo "Running Docker Build Stage"
-      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
-      - docker build -t pos-app:$SHORT_SHA .
-    when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "docker" || STAGE == "push" || STAGE == "all"
-
-  docker-push:
+        
+  docker:
     image: woodpeckerci/plugin-docker-buildx
-    depends_on: [ docker-build ]
+    depends_on: [ build ]
     settings:
       repo: reg-devdew.chub-beta.ts.net/devdew/pos-app
+      dockerfile: Dockerfile
       tags:
         - ${CI_COMMIT_SHA:0:7}
+      registry: reg-devdew.chub-beta.ts.net
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
