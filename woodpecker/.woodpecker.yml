@@ -52,13 +52,8 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - echo "Workspace variable:"
-      - echo $CI_WORKSPACE
-      - echo "Current directory:"
-      - pwd
-      - echo "Listing files:"
-      - ls -la
-      - echo "Deploying latest image using Docker Compose"
+      
+      
       - cd $CI_WORKSPACE
       - docker compose pull
       - docker compose up -d --force-recreate --remove-orphans
