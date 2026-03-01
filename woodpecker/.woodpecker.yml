@@ -23,7 +23,7 @@ steps:
       - event: manual
         evaluate: STAGE == "test" || STAGE == "all"
 
-  docker:
+  docker-push:
     image: docker:24
     depends_on: [ build ]
     volumes:
@@ -32,8 +32,9 @@ steps:
       - echo "Logging into registry"
       - echo "$DOCKER_PASSWORD" | docker login localhost:81 -u "$DOCKER_USERNAME" --password-stdin
       - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
-      - docker build -t localhost:81/pos-app:$SHORT_SHA -f Dockerfile .
+      - docker build -t localhost:81/pos-app:$SHORT_SHA -t localhost:81/pos-app:latest -f Dockerfile .
       - docker push localhost:81/pos-app:$SHORT_SHA
+      - docker push localhost:81/pos-app:latest
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
@@ -44,3 +45,18 @@ steps:
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
         evaluate: STAGE == "push" || STAGE == "all"
+
+  deploy:
+    image: docker:24
+    depends_on: [ docker-push ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - echo "Deploying latest image using Docker Compose"
+      - docker compose pull
+      - docker compose up -d --force-recreate --remove-orphans
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "deploy" || STAGE == "all"

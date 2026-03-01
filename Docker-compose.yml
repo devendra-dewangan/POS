@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  pos-app:
+    image: reg-devdew.chub-beta.ts.net/pos-app:latest
+    container_name: pos-app
+    ports:
+      - "5000:80"
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
