@@ -53,6 +53,7 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "Deploying latest image using Docker Compose"
+      - cd $CI_WORKSPACE
       - docker compose pull
       - docker compose up -d --force-recreate --remove-orphans
     when:
