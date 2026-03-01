@@ -24,19 +24,21 @@ steps:
         evaluate: STAGE == "test" || STAGE == "all"
 
   docker:
-    image: woodpeckerci/plugin-docker-buildx
+    image: docker:24
     depends_on: [ build ]
-    settings:
-      repo: reg-devdew.chub-beta.ts.net/pos-app
-      registry: reg-devdew.chub-beta.ts.ne
-      dockerfile: Dockerfile
-      tags:
-        - ${CI_COMMIT_SHA:0:7}
-      username:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - echo "Logging into registry"
+      - echo "$DOCKER_PASSWORD" | docker login reg-devdew.chub-beta.ts.net -u "$DOCKER_USERNAME" --password-stdin
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - docker build -t reg-devdew.chub-beta.ts.net/pos-app:$SHORT_SHA -f Dockerfile .
+      - docker push reg-devdew.chub-beta.ts.net/pos-app:$SHORT_SHA
+    environment:
+      DOCKER_USERNAME:
         from_secret: docker_username
-      password:
+      DOCKER_PASSWORD:
         from_secret: docker_password
-      insecure: true
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
