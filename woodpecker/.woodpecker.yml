@@ -23,19 +23,22 @@ steps:
       - event: manual
         evaluate: STAGE == "test" || STAGE == "all"
 
-  docker-push:
-    image: woodpeckerci/plugin-docker-buildx
+  docker:
+    image: docker:24
     depends_on: [ build ]
-    settings:
-      repo: localhost:81/pos-app
-      registry: localhost:81
-      insecure: true
-      username:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - echo "Logging into registry"
+      - echo "$DOCKER_PASSWORD" | docker login localhost:81 -u "$DOCKER_USERNAME" --password-stdin
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - docker build -t localhost:81/pos-app:$SHORT_SHA -f Dockerfile .
+      - docker push localhost:81/pos-app:$SHORT_SHA
+    environment:
+      DOCKER_USERNAME:
         from_secret: docker_username
-      password:
+      DOCKER_PASSWORD:
         from_secret: docker_password
-      tags:
-        - ${CI_COMMIT_SHA:0:7}
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
