@@ -27,7 +27,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     depends_on: [ build ]
     settings:
-      repo: reg-devdew.chub-beta.ts.net/devdew/pos-app
+      repo: reg-devdew.chub-beta.ts.net/pos-app
       registry: reg-devdew.chub-beta.ts.ne
       dockerfile: Dockerfile
       tags:
