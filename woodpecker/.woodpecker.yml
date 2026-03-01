@@ -22,20 +22,21 @@ steps:
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
         evaluate: STAGE == "test" || STAGE == "all"
-        
+
   docker:
     image: woodpeckerci/plugin-docker-buildx
     depends_on: [ build ]
     settings:
       repo: reg-devdew.chub-beta.ts.net/devdew/pos-app
+      registry: reg-devdew.chub-beta.ts.ne
       dockerfile: Dockerfile
       tags:
         - ${CI_COMMIT_SHA:0:7}
-      registry: reg-devdew.chub-beta.ts.net
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
+      insecure: true
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
