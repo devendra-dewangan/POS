@@ -26,7 +26,7 @@ namespace POS.UnitTests.Services
                 .Options;
 
             _context = new AppDbContext(dbOptions);
-            _mockBatchService = MockFactory.CreateMockBatchService();
+            _mockBatchService = POS.UnitTests.Mocks.MockFactory.CreateMockBatchService();
             _productService = new ProductService(_context, _mockBatchService.Object);
         }
 
@@ -210,7 +210,7 @@ namespace POS.UnitTests.Services
         public async Task GetAllProductsAsync_WhenProductsExist_ShouldReturnAllProducts()
         {
             // Arrange
-            var products = MockFactory.CreateSampleProducts();
+            var products = POS.UnitTests.Mocks.MockFactory.CreateSampleProducts();
             _context.Products.AddRange(products);
             await _context.SaveChangesAsync();
 
