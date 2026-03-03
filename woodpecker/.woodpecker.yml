@@ -1,6 +1,8 @@
 steps:
   build:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
     commands:
       - echo "Running Build Stage"
       - dotnet restore POS/POS.csproj
@@ -13,6 +15,8 @@ steps:
 
   unit-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running Test Stage"
@@ -25,6 +29,8 @@ steps:
 
   api-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running API Tests"
@@ -37,6 +43,8 @@ steps:
 
   integration-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running Integration Tests"
@@ -92,6 +100,8 @@ steps:
 
   e2e-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
     depends_on: [ test-deploy ]
     commands:
       - echo "Installing Playwright Browsers"
