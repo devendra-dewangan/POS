@@ -23,6 +23,18 @@ steps:
       - event: manual
         evaluate: STAGE == "ut" || STAGE == "all"
 
+  api-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on: [ build ]
+    commands:
+      - echo "Running API Tests"
+      - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "api" || STAGE == "all"
+
   integration-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     depends_on: [ build ]
@@ -58,7 +70,7 @@ steps:
       - event: manual
         evaluate: STAGE == "push" || STAGE == "all"
 
-  deploy:
+  test-deploy:
     image: docker:24
     depends_on: [ docker-push ]
     volumes:
@@ -76,29 +88,17 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "deploy" || STAGE == "all"
-
-  api-tests:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
-    depends_on: [ docker-push ]
-    commands:
-      - echo "Running API Tests"
-      - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
-    when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "api" || STAGE == "all"
+        evaluate: STAGE == "test-deploy" || STAGE == "all"
 
   e2e-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    depends_on: [ docker-push ]
+    depends_on: [ test-deploy ]
     commands:
       - echo "Installing Playwright Browsers"
-      - dotnet build tests/E2ETests/E2ETests.csproj
-      - pwsh tests/E2ETests/bin/Release/net8.0/playwright.ps1 install
+      - dotnet build POS.E2ETests/E2ETests.csproj
+      # - pwsh POS.E2ETests/E2ETests/bin/Release/net8.0/playwright.ps1 install
       - echo "Running E2E Tests"
-      - dotnet test tests/E2ETests/E2ETests.csproj --configuration Release
+      - dotnet test POS.E2ETests/POS.E2ETests.csproj --configuration Release
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
