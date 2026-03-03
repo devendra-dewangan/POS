@@ -61,3 +61,7 @@ POS/Migrations/*.Designer.cs
 # Exclude any backup migration files
 *_backup.cs
 *_old.cs
+
+
+#test
+*.feature.cs
