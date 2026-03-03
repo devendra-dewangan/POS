@@ -95,7 +95,7 @@ steps:
     depends_on: [ test-deploy ]
     commands:
       - echo "Installing Playwright Browsers"
-      - dotnet build POS.E2ETests/E2ETests.csproj
+      - dotnet build POS.E2ETests/POS.E2ETests.csproj
       # - pwsh POS.E2ETests/E2ETests/bin/Release/net8.0/playwright.ps1 install
       - echo "Running E2E Tests"
       - dotnet test POS.E2ETests/POS.E2ETests.csproj --configuration Release
