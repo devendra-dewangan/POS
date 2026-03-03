@@ -1,8 +1,6 @@
 steps:
   build:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    volumes:
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     commands:
       - echo "Running Build Stage"
       - dotnet restore POS/POS.csproj
@@ -15,8 +13,6 @@ steps:
 
   unit-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    volumes:
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running Test Stage"
@@ -29,8 +25,6 @@ steps:
 
   api-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    volumes:
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running API Tests"
@@ -43,8 +37,6 @@ steps:
 
   integration-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    volumes:
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     depends_on: [ build ]
     commands:
       - echo "Running Integration Tests"
@@ -60,7 +52,6 @@ steps:
     depends_on: [ build ]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     commands:
       - echo "Logging into registry"
       - echo "$DOCKER_PASSWORD" | docker login localhost:81 -u "$DOCKER_USERNAME" --password-stdin
@@ -101,8 +92,6 @@ steps:
 
   e2e-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    volumes:
-      - /woodpecker-cache/nuget:/root/.nuget/packages
     depends_on: [ test-deploy ]
     commands:
       - echo "Installing Playwright Browsers"
