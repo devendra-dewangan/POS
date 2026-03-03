@@ -9,19 +9,31 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "build" || STAGE == "all" || STAGE == "push"
+        evaluate: STAGE == "build" || STAGE == "all" || STAGE == "ut"
 
-  test:
+  unit-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     depends_on: [ build ]
     commands:
       - echo "Running Test Stage"
-      - dotnet test POS/POS.csproj --configuration Release --no-build
+      - dotnet test POS.UnitTests/POS.UnitTests.csproj --configuration Release --no-build
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "test" || STAGE == "all"
+        evaluate: STAGE == "ut" || STAGE == "all"
+
+  integration-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on: [ build ]
+    commands:
+      - echo "Running Integration Tests"
+      - dotnet test POS.IntegrationTests/POS.IntegrationTests.csproj --configuration Release --no-build
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "integration" || STAGE == "all"
 
   docker-push:
     image: docker:24
@@ -65,3 +77,30 @@ steps:
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
         evaluate: STAGE == "deploy" || STAGE == "all"
+
+  api-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on: [ docker-push ]
+    commands:
+      - echo "Running API Tests"
+      - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "api" || STAGE == "all"
+
+  e2e-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on: [ docker-push ]
+    commands:
+      - echo "Installing Playwright Browsers"
+      - dotnet build tests/E2ETests/E2ETests.csproj
+      - pwsh tests/E2ETests/bin/Release/net8.0/playwright.ps1 install
+      - echo "Running E2E Tests"
+      - dotnet test tests/E2ETests/E2ETests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "e2e" || STAGE == "all"
