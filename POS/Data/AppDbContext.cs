@@ -16,6 +16,7 @@ namespace POS.Data
         public DbSet<Batch> Batches { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<Buyer> Buyers { get; set; }
+        public DbSet<ImportPurchaseTemp> ImportPurchaseTemp { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

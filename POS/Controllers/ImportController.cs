@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using POS.Services;
+using POS.Services.Import;
+using POS.Services.ImportModels;
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace POS.Controllers
@@ -17,9 +19,24 @@ namespace POS.Controllers
             _importService = importService;
         }
 
+        // GET: api/import/purchase/columns
+        [HttpGet("purchase/columns")]
+        public ActionResult GetPurchaseColumnStructure()
+        {
+            var properties = typeof(PurchaseExcelRow).GetProperties();
+            var columns = properties.Select((prop, index) => new
+            {
+                index,
+                name = prop.Name,
+                type = prop.PropertyType.Name
+            });
+
+            return Ok(columns);
+        }
+
         // POST: api/import/purchase
         [HttpPost("purchase")]
-        public async Task<ActionResult> ImportPurchaseExcel()
+        public ActionResult ImportPurchaseExcel()
         {
             try
             {
@@ -29,18 +46,31 @@ namespace POS.Controllers
                     return BadRequest("No file uploaded.");
                 }
 
-                var result = await _importService.ImportPurchaseDataAsync(file);
+                // Start import process asynchronously
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _importService.ImportPurchaseDataAsync(file);
+                        // TODO: Implement notification mechanism (email, WebSocket, etc.)
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error
+                        Console.WriteLine($"Error processing purchase import: {ex.Message}");
+                    }
+                });
 
                 return Ok(new
                 {
-                    message = result ? "Purchase data imported successfully" : "Failed to import purchase data",
+                    message = "Purchase data processing started",
                     fileName = file.FileName,
                     uploadTime = DateTime.UtcNow
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error processing file: {ex.Message}");
+                return StatusCode(500, $"Error starting import process: {ex.Message}");
             }
         }
 
