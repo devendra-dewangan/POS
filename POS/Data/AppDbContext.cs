@@ -85,7 +85,7 @@ namespace POS.Data
                       .HasForeignKey(e => e.ProductId)
                       .OnDelete(DeleteBehavior.SetNull); // Allow null ProductId for empty batches
                 entity.HasOne(e => e.Purchase)
-                      .WithMany(p => p.Batches)
+                      .WithMany(p => p.PurchaseItems)
                       .HasForeignKey(e => e.PurchaseId)
                       .OnDelete(DeleteBehavior.SetNull); // Allow null PurchaseId
                 entity.Property(e => e.Stock).IsRequired().HasColumnType("decimal(18,2)");

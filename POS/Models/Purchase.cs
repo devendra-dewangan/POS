@@ -20,6 +20,6 @@ namespace POS.Models
         public DateTime PurchaseDate { get; set; }
         
         [JsonIgnore]
-        public ICollection<Batch> Batches { get; set; } = new List<Batch>();
+        public ICollection<Batch> PurchaseItems { get; set; } = new List<Batch>();
     }
 }

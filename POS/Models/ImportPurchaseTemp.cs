@@ -15,10 +15,10 @@ namespace POS.Models
         
         // Excel row data fields
         public string InvoiceNo { get; set; } = string.Empty;
-        public string InvoiceDate { get; set; } = string.Empty;
+        public DateTime InvoiceDate { get; set; }
         public string TaxType { get; set; } = string.Empty;
         public string SupplierInvoiceNo { get; set; } = string.Empty;
-        public string SupplierInvoiceDate { get; set; } = string.Empty;
+        public DateTime SupplierInvoiceDate { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string GSTIN { get; set; } = string.Empty;

@@ -149,8 +149,7 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("InvoiceDate")
-                        .IsRequired()
+                    b.Property<DateTime>("InvoiceDate")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("InvoiceNo")
@@ -200,8 +199,7 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SupplierInvoiceDate")
-                        .IsRequired()
+                    b.Property<DateTime>("SupplierInvoiceDate")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SupplierInvoiceNo")
@@ -367,7 +365,7 @@ namespace POS.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("POS.Models.Purchase", "Purchase")
-                        .WithMany("Batches")
+                        .WithMany("PurchaseItems")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -435,7 +433,7 @@ namespace POS.Migrations
 
             modelBuilder.Entity("POS.Models.Purchase", b =>
                 {
-                    b.Navigation("Batches");
+                    b.Navigation("PurchaseItems");
                 });
 
             modelBuilder.Entity("POS.Models.Sale", b =>
