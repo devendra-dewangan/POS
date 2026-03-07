@@ -1,223 +1,125 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using POS.Data;
 using POS.Models;
-using Microsoft.EntityFrameworkCore;
+using POS.Services.ImportModels;
 
 namespace POS.Services.Import
 {
     public class ImportDataProcessor
     {
-        private readonly AppDbContext _context;
+        private readonly IProductService _productService;
+        private readonly ISupplierService _supplierService;
 
-        public ImportDataProcessor(AppDbContext context)
+        public ImportDataProcessor(IProductService productService, ISupplierService supplierService)
         {
-            _context = context;
+            _productService = productService;
+            _supplierService = supplierService;
         }
 
-        // Event to emit batch count information
-        public event Action<int, int> BatchCountUpdated;
-
-        public async Task<List<ValidationError>> ValidateTempDataAsync(Guid importId)
+        public async Task<List<Purchase>> ProcessPurchaseDataFromTempTable(List<ImportPurchaseTemp> tempRecords)
         {
-            try
-            {
-                var validationErrors = await ValidateTempData(importId);
-                if (validationErrors.Any())
-                {
-                    // Mark records with errors
-                    foreach (var error in validationErrors)
-                    {
-                        var record = await _context.ImportPurchaseTemp.FindAsync(error.RecordId);
-                        if (record != null)
-                        {
-                            record.Status = "Failed";
-                            record.ErrorMessage = error.ErrorMessage;
-                            _context.ImportPurchaseTemp.Update(record);
-                        }
-                    }
-                    await _context.SaveChangesAsync();
-                }
-                
-                return validationErrors;
-            }
-            catch (Exception)
-            {
-                return new List<ValidationError>();
-            }
-        }
-
-        public async Task<(List<Supplier>, List<Product>, List<Purchase>, List<Batch>, List<ImportPurchaseTemp>)> ProcessPurchaseDataFromTempTable(List<ImportPurchaseTemp> tempRecords)
-        {
-            // Prepare lists for bulk saving
-            var suppliers = new List<Supplier>();
-            var products = new List<Product>();
-            var purchases = new List<Purchase>();
-            var batches = new List<Batch>();
-            var processedTempRecords = new List<ImportPurchaseTemp>();
-
-            // ----------------------------
-            // 1️⃣ Preload Suppliers
-            // ----------------------------
+            // 1️⃣ Extract distinct supplier names
             var supplierNames = tempRecords
                 .Select(x => x.SupplierName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct()
                 .ToList();
 
-            var existingSuppliers = await _context.Suppliers
-                .Where(s => supplierNames.Contains(s.Name))
-                .ToListAsync();
-
-            var supplierDict = existingSuppliers
-                .ToDictionary(s => s.Name, s => s);
-
-            // ----------------------------
-            // 2️⃣ Preload Products
-            // ----------------------------
-            var productNames = tempRecords
-                .Where(x => !string.IsNullOrEmpty(x.ProductName))
-                .Select(x => x.ProductName)
+            // 2️⃣ Extract distinct barcodes
+            var barcodes = tempRecords
+                .Select(x => x.Barcode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct()
                 .ToList();
 
-            var existingProducts = await _context.Products
-                .Where(p => productNames.Contains(p.ProductName))
-                .ToListAsync();
+            // 3️⃣ Query database ONCE
+            var suppliersFromDb = await _supplierService.GetSuppliersByNamesAsync(supplierNames);
+            var productsFromDb = await _productService.GetProductsByBarcodesAsync(barcodes);
 
-            var productDict = existingProducts
-                .ToDictionary(p => p.ProductName, p => p);
+            // 4️⃣ Build dictionaries
+            var supplierCache = suppliersFromDb
+                .ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
-            foreach (var group in tempRecords.GroupBy(x => new { x.InvoiceNo, x.SupplierName }))
-            {
-                var first = group.First();
+            var productCache = productsFromDb
+                .ToDictionary(p => p.Barcode, StringComparer.OrdinalIgnoreCase);
 
-                // ----------------------------
-                // 3️⃣ Get or Create Supplier
-                // ----------------------------
-                if (!supplierDict.TryGetValue(first.SupplierName, out var supplier))
+            // 5️⃣ Create purchases
+            var purchases = tempRecords
+                .GroupBy(p => p.InvoiceNo)
+                .Select(group =>
                 {
-                    supplier = new Supplier { Name = first.SupplierName };
-                    suppliers.Add(supplier);
-                    supplierDict[first.SupplierName] = supplier;
-                }
+                    var first = group.First();
 
-                // ----------------------------
-                // 4️⃣ Check Purchase Duplicate
-                // ----------------------------
-                var existingPurchase = await _context.Purchases
-                    .FirstOrDefaultAsync(p =>
-                        p.InvoiceNumber == first.InvoiceNo &&
-                        p.SupplierId == supplier.Id);
-
-                if (existingPurchase != null)
-                {
-                    foreach (var r in group)
+                    // Resolve supplier
+                    if (!supplierCache.TryGetValue(first.SupplierName, out var supplier))
                     {
-                        r.Status = "Completed";
-                        r.ProcessedAt = DateTime.UtcNow;
-                        r.ErrorMessage = "Duplicate Purchase";
-                        processedTempRecords.Add(r);
-                    }
-                    continue;
-                }
-
-                // ----------------------------
-                // 5️⃣ Create Purchase
-                // ----------------------------
-                var purchaseDate = DateTime.TryParse(first.InvoiceDate, out var dt)
-                    ? dt
-                    : DateTime.UtcNow;
-
-                var purchase = new Purchase
-                {
-                    SupplierId = supplier.Id,
-                    InvoiceNumber = first.InvoiceNo,
-                    PurchaseDate = purchaseDate
-                };
-
-                purchases.Add(purchase);
-
-                // ----------------------------
-                // 6️⃣ Process Products
-                // ----------------------------
-                foreach (var record in group)
-                {
-                    if (string.IsNullOrEmpty(record.ProductName))
-                        continue;
-
-                    if (!productDict.TryGetValue(record.ProductName, out var product))
-                    {
-                        product = new Product
+                        supplier = new Supplier
                         {
-                            ProductName = record.ProductName,
-                            ProductCode = record.ProductCode,
-                            Barcode = record.Barcode
+                            Name = first.SupplierName
                         };
 
-                        products.Add(product);
-                        productDict[record.ProductName] = product;
+                        supplierCache[first.SupplierName] = supplier;
                     }
 
-                    // Safe MRP calculation
-                    var mrp = record.Quantity > 0
-                        ? record.TotalAmount / record.Quantity
-                        : 0;
-
-                    var batch = new Batch
+                    return new Purchase
                     {
-                        ProductId = product.Id,
-                        PurchaseId = purchase.Id,
-                        Stock = record.Quantity,
-                        PurchaseStock = record.Quantity,
-                        PurchaseRate = record.PurchaseRate,
-                        MRP = mrp
+                        InvoiceNumber = group.Key,
+                        PurchaseDate = first.InvoiceDate,
+                        Supplier = supplier,
+
+                        PurchaseItems = [.. group.Select(b =>
+                        {
+                            // Resolve product
+                            if (!productCache.TryGetValue(b.Barcode, out var product))
+                            {
+                                product = new Product
+                                {
+                                    ProductName = b.ProductName,
+                                    ProductCode = b.ProductCode,
+                                    Barcode = b.Barcode
+                                };
+
+                                productCache[b.Barcode] = product;
+                            }
+
+                            return new Batch
+                            {
+                                Product = product,
+                                Stock = b.Quantity,
+                                PurchaseStock = b.Quantity,
+                                PurchaseRate = b.PurchaseRate,
+                                MRP = b.PurchaseRate,
+                                SaleRate = b.PurchaseRate
+                            };
+                        })]
                     };
+                })
+                .ToList();
 
-                    batches.Add(batch);
-
-                    record.Status = "Completed";
-                    record.ProcessedAt = DateTime.UtcNow;
-                    processedTempRecords.Add(record);
-                }
-            }
-
-            // Emit batch count information
-            OnBatchCountUpdated(suppliers.Count, products.Count);
-
-            return (suppliers, products, purchases, batches, processedTempRecords);
+            return purchases;
         }
 
 
-        private async Task<List<ValidationError>> ValidateTempData(Guid importId)
+        public List<ValidationError> ValidateData(ImportPurchaseTemp record, int rowCount)
         {
             var errors = new List<ValidationError>();
-            var records = await _context.ImportPurchaseTemp
-                .Where(t => t.ImportId == importId)
-                .ToListAsync();
 
-            foreach (var record in records)
-            {
-                // Check required fields
-                if (string.IsNullOrEmpty(record.InvoiceNo))
-                    errors.Add(new ValidationError(record.Id, "InvoiceNo is required"));
+            // Check required fields
+            if (string.IsNullOrEmpty(record.InvoiceNo))
+                errors.Add(new ValidationError(rowCount, "InvoiceNo is required"));
 
-                if (string.IsNullOrEmpty(record.SupplierName))
-                    errors.Add(new ValidationError(record.Id, "SupplierName is required"));
+            if (string.IsNullOrEmpty(record.SupplierName))
+                errors.Add(new ValidationError(rowCount, "SupplierName is required"));
 
-                if (string.IsNullOrEmpty(record.ProductName))
-                    errors.Add(new ValidationError(record.Id, "ProductName is required"));
+            if (string.IsNullOrEmpty(record.ProductName))
+                errors.Add(new ValidationError(rowCount, "ProductName is required"));
 
-                if (record.Quantity <= 0)
-                    errors.Add(new ValidationError(record.Id, "Quantity must be greater than 0"));
+            if (record.Quantity <= 0)
+                errors.Add(new ValidationError(rowCount, "Quantity must be greater than 0"));
 
-                if (record.PurchaseRate < 0)
-                    errors.Add(new ValidationError(record.Id, "PurchaseRate cannot be negative"));
+            if (record.PurchaseRate < 0)
+                errors.Add(new ValidationError(rowCount, "PurchaseRate cannot be negative"));
 
-                if (record.TotalAmount < 0)
-                    errors.Add(new ValidationError(record.Id, "TotalAmount cannot be negative"));
-            }
+            if (record.TotalAmount < 0)
+                errors.Add(new ValidationError(rowCount, "TotalAmount cannot be negative"));
 
             return errors;
         }
@@ -235,10 +137,31 @@ namespace POS.Services.Import
             }
         }
 
-        // Event invoker for batch count updates
-        protected virtual void OnBatchCountUpdated(int supplierCount, int productCount)
+
+        public async Task<List<string>> ValidateRowDataAsync(PurchaseExcelRow rowData)
         {
-            BatchCountUpdated?.Invoke(supplierCount, productCount);
+            var errors = new List<string>();
+
+            // Check required fields
+            if (string.IsNullOrEmpty(rowData.InvoiceNo))
+                errors.Add("InvoiceNo is required");
+
+            if (string.IsNullOrEmpty(rowData.SupplierName))
+                errors.Add("SupplierName is required");
+
+            if (string.IsNullOrEmpty(rowData.ProductName))
+                errors.Add("ProductName is required");
+
+            if (rowData.Quantity <= 0)
+                errors.Add("Quantity must be greater than 0");
+
+            if (rowData.PurchaseRate < 0)
+                errors.Add("PurchaseRate cannot be negative");
+
+            if (rowData.TotalAmount < 0)
+                errors.Add("TotalAmount cannot be negative");
+
+            return errors;
         }
     }
 }

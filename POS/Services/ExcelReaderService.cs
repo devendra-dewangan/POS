@@ -1,6 +1,7 @@
 using ExcelDataReader;
 using Microsoft.AspNetCore.Http;
 using System.Reflection;
+using System.Threading;
 
 public class ExcelReaderService
 {
@@ -8,9 +9,10 @@ public class ExcelReaderService
 
     public async Task ReadExcelAsync<T>(
         IFormFile file,
-        Func<List<T>, Task> batchHandler,
+        Func<List<T>, int, Task> batchHandler,
         Action<ImportError> errorHandler,
-        Action<ImportProgress> progressHandler
+        Action<ImportProgress> progressHandler,
+        CancellationToken cancellationToken
     ) where T : new()
     {
         System.Text.Encoding.RegisterProvider(
@@ -27,6 +29,8 @@ public class ExcelReaderService
 
         while (reader.Read())
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             rowNumber++;
 
             if (isHeader)
@@ -41,6 +45,8 @@ public class ExcelReaderService
 
                 for (int i = 0; i < properties.Length; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var value = reader.GetValue(i);
 
                     if (value == null) continue;
@@ -60,7 +66,10 @@ public class ExcelReaderService
 
                 if (buffer.Count >= BatchSize)
                 {
-                    await batchHandler(buffer);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    await batchHandler(buffer,rowNumber);
+
                     buffer.Clear();
                 }
             }
@@ -71,7 +80,6 @@ public class ExcelReaderService
                     RowNumber = rowNumber,
                     Message = ex.Message
                 });
-                break;
             }
 
             progressHandler?.Invoke(new ImportProgress
@@ -82,7 +90,9 @@ public class ExcelReaderService
 
         if (buffer.Count > 0)
         {
-            await batchHandler(buffer);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await batchHandler(buffer,rowNumber);
         }
     }
 }
@@ -90,7 +100,7 @@ public class ExcelReaderService
 public class ImportError
 {
     public int RowNumber { get; set; }
-    public string Message { get; set; }
+    public string Message { get; set; } = string.Empty;
 }
 
 public class ImportProgress

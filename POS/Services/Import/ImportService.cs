@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using POS.Data;
 using POS.Models;
 using POS.Services.ImportModels;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using static POS.Services.Import.ImportDataProcessor;
 
 namespace POS.Services.Import
 {
@@ -15,125 +11,88 @@ namespace POS.Services.Import
         private readonly AppDbContext _context;
         private readonly ExcelReaderService _excelReaderService;
         private readonly ImportDataProcessor _dataProcessor;
-        private readonly ImportDataCleanup _dataCleanup;
-        private readonly IBulkSaver _bulkSaver;
+        private const int BatchSizeErrors = 100;
+        private const int BatchSize = 1000;
 
         public ImportService(
             AppDbContext context,
             ExcelReaderService excelReaderService,
-            IBulkSaver bulkSaver)
+            IProductService productService,
+            ISupplierService supplierService)
         {
             _context = context;
             _excelReaderService = excelReaderService;
-            _dataProcessor = new ImportDataProcessor(_context);
-            _dataCleanup = new ImportDataCleanup(_context);
-            _bulkSaver = bulkSaver;
+            _dataProcessor = new ImportDataProcessor(productService, supplierService);
         }
 
         public async Task<bool> ImportPurchaseDataAsync(IFormFile file)
         {
             var importId = Guid.NewGuid();
-
+            var cancellationTokenSource = new CancellationTokenSource();
+            var validationErrors = new Dictionary<int, List<ValidationError>>();
+            var errorList = new List<ImportError>();
             try
             {
                 await _excelReaderService.ReadExcelAsync<PurchaseExcelRow>(
                             file,
                 // batch handler
-                async batch =>
+                async (batch, rowNumber) =>
                 {
-                    await ProcessBatch(batch, importId, file);
+                    await ProcessBatch(batch, rowNumber,importId, file, validationErrors, cancellationTokenSource);
+
                 },
 
                 // error handler
                 error =>
                 {
+                    errorList.Add(error);
                     Console.WriteLine($"Row {error.RowNumber} error: {error.Message}");
-                    _dataCleanup.DeleteImportDataAsync(importId).Wait();
+                    if (errorList.Count > BatchSizeErrors)
+                    {
+                        Console.WriteLine("Too many errors, cancelling import.");
+                        cancellationTokenSource.Cancel();
+                    }
                 },
 
                 // progress handler
                 progress =>
                 {
                     Console.WriteLine($"Processed rows: {progress.ProcessedRows}");
-                });
-
-                // 2. Validate temporary data first - only proceed if validation passes
-                var validationErrors = await _dataProcessor.ValidateTempDataAsync(importId);
-                if (validationErrors.Any())
+                }
+                ,cancellationTokenSource.Token
+                );
+                
+                if (validationErrors.Any() || errorList.Any())
                 {
-                    // Validation failed - clean up temporary data
-                    await _dataCleanup.DeleteImportDataAsync(importId);
+                    Console.WriteLine($"Import completed with {validationErrors.Count} records having validation errors."); 
+                    await DeleteImportDataAsync(importId);
                     return false;
                 }
 
-                // Use transaction only for the final processing and saving
-                using var transaction = await _context.Database.BeginTransactionAsync();
-
-                try
-                {
-                    // 3. Process temporary data in batches until all data is processed
-                    const int batchSize = 1000;
-
-                    while (true)
-                    {
-                        // Get next batch of pending records
-                        var batchRecords = await _context.ImportPurchaseTemp
-                            .Where(t => t.ImportId == importId && t.Status == "Pending")
-                            .OrderBy(t => t.Id)
-                            .Take(batchSize)
-                            .ToListAsync();
-
-                        if (!batchRecords.Any())
-                        {
-                            break; // No more records to process
-                        }
-
-                        // Process the batch
-                        var (suppliers, products, purchases, batches, processedRecords) =
-                            await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords);
-
-                        // Save the processed data using BulkSaver
-                        var saveResult = await _bulkSaver.SavePurchaseDataAsync(
-                            suppliers, products, purchases, batches, processedRecords);
-
-                        if (!saveResult)
-                        {
-                            // Processing failed - rollback transaction
-                            await transaction.RollbackAsync();
-                            return false;
-                        }
-                    }
-
-                    // Commit the transaction if all processing is successful
-                    await transaction.CommitAsync();
-                    return true;
-                }
-                catch (Exception)
-                {
-                    // Rollback transaction on any error
-                    await transaction.RollbackAsync();
-                    return false;
-                }
+                // Process data with validation and transaction handling
+                return await ProcessDataWithValidationAndTransaction(importId);
 
 
             }
             catch (Exception)
             {
                 // Log error
-                await _dataCleanup.DeleteImportDataAsync(importId);
+                await DeleteImportDataAsync(importId);
                 return false;
             }
         }
 
 
-        private async Task ProcessBatch(List<PurchaseExcelRow> rowDataBatch, Guid importId, IFormFile file)
+        private async Task ProcessBatch(List<PurchaseExcelRow> rowDataBatch, int rowNumber, Guid importId, IFormFile file, Dictionary<int, List<ValidationError>> validationErrors, CancellationTokenSource cancellationTokenSource)
         {
             var tempRecords = new List<ImportPurchaseTemp>();
+            var rowCount = rowNumber;
 
             foreach (var rowData in rowDataBatch)
             {
                 try
                 {
+                    rowCount++;
                     var tempRecord = new ImportPurchaseTemp
                     {
                         ImportId = importId,
@@ -177,13 +136,47 @@ namespace POS.Services.Import
                         CreatedAt = DateTime.UtcNow
                     };
 
-                    tempRecords.Add(tempRecord);
+                    var recordValidationErrors = _dataProcessor.ValidateData(tempRecord,rowCount);
+                    if (recordValidationErrors.Any())
+                    {
+                        validationErrors[tempRecord.Id] = recordValidationErrors;
+                    }
+                    else
+                    {
+                        tempRecords.Add(tempRecord);
+                    }
+
+                    if (validationErrors.Count > BatchSizeErrors)
+                    {
+                        Console.WriteLine($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
+                        cancellationTokenSource.Cancel();
+                        return;
+                    }
+
                 }
                 catch (Exception ex)
                 {
                     // Log error and skip this record
                     Console.WriteLine($"Error processing Excel batch: {ex.Message}");
                 }
+            }
+
+            try
+            {
+                if (validationErrors.Any())
+                {
+                    Console.WriteLine($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
+                    return;
+                }
+                // Save batch to database
+                await _context.ImportPurchaseTemp.AddRangeAsync(tempRecords);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log error
+                Console.WriteLine($"Error saving batch to database: {ex.Message}");
+                throw;
             }
         }
 
@@ -208,9 +201,93 @@ namespace POS.Services.Import
             }
         }
 
+        private async Task<bool> ProcessDataWithValidationAndTransaction(Guid importId)
+        {
+            
+            // Use transaction only for the final processing and saving
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+
+                while (true)
+                {
+                    // Get next batch of pending records
+                    var batchRecords = await _context.ImportPurchaseTemp
+                        .Where(t => t.ImportId == importId && t.Status == "Pending")
+                        .OrderBy(t => t.Id)
+                        .Take(BatchSize)
+                        .ToListAsync();
+
+                    if (!batchRecords.Any())
+                    {
+                        break; // No more records to process
+                    }
+
+                    // Process the batch
+                    var processedRecords =
+                        await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords);
+
+                    // Save the processed data using BulkSaver
+
+                    var suppliers = processedRecords
+                                    .Select(p => p.Supplier)
+                                    .Where(s => s != null && s.Id == 0)
+                                    .Distinct().ToList();
+
+                    // save supplier
+                    var products = processedRecords.SelectMany(p => p.PurchaseItems)
+                        .Select(i => i.Product)
+                        .Where(p => p != null && p.Id == 0)
+                        .Distinct()
+                        .ToList();
+                    //save product
+
+                    processedRecords.ForEach(p =>
+                    {
+                        p.SupplierId = p.Supplier == null ? p.SupplierId : p.Supplier.Id;
+                        foreach (var i in p.PurchaseItems)
+                        {
+                            i.ProductId = i.Product == null ? i.ProductId : i.Product.Id;
+                        }
+                    });
+                    
+                    //save purchase 
+                    // if (!saveResult)
+                    // {
+                    //     // Processing failed - rollback transaction
+                    //     await transaction.RollbackAsync();
+                    //     return false;
+                    // }
+                }
+
+                // Commit the transaction if all processing is successful
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                // Rollback transaction on any error
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
         public async Task<bool> DeleteImportDataAsync(Guid importId)
         {
-            return await _dataCleanup.DeleteImportDataAsync(importId);
+            var records = await _context.ImportPurchaseTemp
+                .Where(t => t.ImportId == importId)
+                .ToListAsync();
+
+            if (!records.Any())
+            {
+                return false;
+            }
+
+            _context.ImportPurchaseTemp.RemoveRange(records);
+            await _context.SaveChangesAsync();
+            return true;
         }
+    
     }
 }

@@ -9,5 +9,6 @@ namespace POS.Services
         Task<Product?> GetProductByNameAsync(string productName);
         Task<Product?> GetProductByBarcodeAsync(string barcode);
         Task<IEnumerable<Product>> GetAllProductsAsync();
+        Task<IEnumerable<Product>> GetProductsByBarcodesAsync(List<string> barcodes);
     }
 }

@@ -1,9 +1,5 @@
 using POS.Data;
 using POS.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace POS.Services
@@ -60,6 +56,16 @@ namespace POS.Services
         public async Task<IEnumerable<Supplier>> GetAllSuppliersAsync()
         {
             return await _context.Suppliers.ToListAsync();
+        }
+
+        public async Task<IEnumerable<Supplier>> GetSuppliersByNamesAsync(List<string> supplierNames)
+        {
+            if (supplierNames == null || supplierNames.Count == 0)
+                return [];
+
+            return await _context.Suppliers
+                .Where(s => supplierNames.Contains(s.Name))
+                .ToListAsync();
         }
     }
 }

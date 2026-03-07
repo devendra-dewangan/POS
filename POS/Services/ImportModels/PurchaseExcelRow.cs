@@ -6,10 +6,10 @@ namespace POS.Services.ImportModels
     {
         // Exact column order from Excel headers
         public string InvoiceNo { get; set; } = string.Empty;           // Column 0
-        public string InvoiceDate { get; set; } = string.Empty;         // Column 1
+        public DateTime InvoiceDate { get; set; }                       // Column 1
         public string TaxType { get; set; } = string.Empty;             // Column 2
         public string SupplierInvoiceNo { get; set; } = string.Empty;   // Column 3
-        public string SupplierInvoiceDate { get; set; } = string.Empty; // Column 4
+        public DateTime SupplierInvoiceDate { get; set; }               // Column 4
         public string SupplierName { get; set; } = string.Empty;        // Column 5
         public string State { get; set; } = string.Empty;               // Column 6
         public string GSTIN { get; set; } = string.Empty;               // Column 7

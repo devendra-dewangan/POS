@@ -108,5 +108,15 @@ namespace POS.Services
         {
             return await _context.Products.ToListAsync();
         }
+
+        public async Task<IEnumerable<Product>> GetProductsByBarcodesAsync(List<string> barcodes)
+        {
+            if (barcodes == null || barcodes.Count == 0)
+                return [];
+
+            return await _context.Products
+                .Where(p => barcodes.Contains(p.Barcode))
+                .ToListAsync();
+        }
     }
 }
