@@ -9,5 +9,7 @@ namespace POS.Services
         Task<Supplier?> GetSupplierByNameAsync(string supplierName);
         Task<IEnumerable<Supplier>> GetAllSuppliersAsync();
         Task<IEnumerable<Supplier>> GetSuppliersByNamesAsync(List<string> supplierNames);
+
+        Task<bool> BulkAddSuppliersAsync(List<Supplier> suppliers);
     }
 }

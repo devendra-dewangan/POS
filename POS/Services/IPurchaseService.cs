@@ -7,5 +7,7 @@ namespace POS.Services
         Task<Purchase> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate);
         Task<Purchase?> GetPurchaseByInvoiceAsync(string invoiceNumber);
         Task<IEnumerable<Purchase>> GetAllPurchasesAsync();
+
+        Task<bool> AddPurchaseBulkAsync(IEnumerable<Purchase> purchases);
     }
 }

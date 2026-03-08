@@ -3,6 +3,7 @@ using POS.Models;
 using POS.Services.ImportModels;
 using Microsoft.EntityFrameworkCore;
 using static POS.Services.Import.ImportDataProcessor;
+using EFCore.BulkExtensions;
 
 namespace POS.Services.Import
 {
@@ -11,6 +12,9 @@ namespace POS.Services.Import
         private readonly AppDbContext _context;
         private readonly ExcelReaderService _excelReaderService;
         private readonly ImportDataProcessor _dataProcessor;
+        private readonly IPurchaseService _purchaseService;
+        private readonly ISupplierService _supplierService;
+        private readonly IProductService _productService;
         private const int BatchSizeErrors = 100;
         private const int BatchSize = 1000;
 
@@ -18,11 +22,16 @@ namespace POS.Services.Import
             AppDbContext context,
             ExcelReaderService excelReaderService,
             IProductService productService,
-            ISupplierService supplierService)
+            ISupplierService supplierService,
+            IPurchaseService purchaseService
+            )
         {
             _context = context;
             _excelReaderService = excelReaderService;
-            _dataProcessor = new ImportDataProcessor(productService, supplierService);
+            _supplierService = supplierService;
+            _productService = productService;
+            _purchaseService = purchaseService;
+            _dataProcessor = new ImportDataProcessor(_productService, _supplierService);
         }
 
         public async Task<bool> ImportPurchaseDataAsync(IFormFile file)
@@ -169,8 +178,7 @@ namespace POS.Services.Import
                     return;
                 }
                 // Save batch to database
-                await _context.ImportPurchaseTemp.AddRangeAsync(tempRecords);
-                await _context.SaveChangesAsync();
+                await _context.BulkInsertAsync(tempRecords);
             }
             catch (Exception ex)
             {
@@ -228,7 +236,6 @@ namespace POS.Services.Import
                     var processedRecords =
                         await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords);
 
-                    // Save the processed data using BulkSaver
 
                     var suppliers = processedRecords
                                     .Select(p => p.Supplier)
@@ -236,38 +243,62 @@ namespace POS.Services.Import
                                     .Distinct().ToList();
 
                     // save supplier
+                    if (suppliers.Any())
+                    {
+                        var isSupplierAdded = await _supplierService.BulkAddSuppliersAsync(suppliers);
+                        if (!isSupplierAdded)
+                        {
+                            // Processing failed - rollback transaction
+                            await transaction.RollbackAsync();
+                            return false;
+                        }
+                    }
+
                     var products = processedRecords.SelectMany(p => p.PurchaseItems)
                         .Select(i => i.Product)
                         .Where(p => p != null && p.Id == 0)
                         .Distinct()
                         .ToList();
                     //save product
+                    if (products.Any())
+                    {
+                        var isProductAdded = await _productService.BulkAddProductsAsync(products);
+                        if (!isProductAdded)
+                        {
+                            // Processing failed - rollback transaction
+                            await transaction.RollbackAsync();
+                            return false;
+                        }
+                    }
+                    
 
                     processedRecords.ForEach(p =>
                     {
-                        p.SupplierId = p.Supplier == null ? p.SupplierId : p.Supplier.Id;
+                        p.SupplierId = p.Supplier != null ? p.Supplier.Id : p.SupplierId;
                         foreach (var i in p.PurchaseItems)
                         {
-                            i.ProductId = i.Product == null ? i.ProductId : i.Product.Id;
+                            i.ProductId = i.Product != null ? i.Product.Id : i.ProductId;
                         }
                     });
                     
                     //save purchase 
-                    // if (!saveResult)
-                    // {
-                    //     // Processing failed - rollback transaction
-                    //     await transaction.RollbackAsync();
-                    //     return false;
-                    // }
+                    var saveResult = await _purchaseService.AddPurchaseBulkAsync(processedRecords);
+                    if (!saveResult)
+                    {
+                        // Processing failed - rollback transaction
+                        await transaction.RollbackAsync();
+                        return false;
+                    }
                 }
 
                 // Commit the transaction if all processing is successful
                 await transaction.CommitAsync();
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Rollback transaction on any error
+                Console.WriteLine($"Error processing data with transaction: {ex.Message}");
                 await transaction.RollbackAsync();
                 return false;
             }

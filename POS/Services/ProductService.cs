@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using EFCore.BulkExtensions;
 
 namespace POS.Services
 {
@@ -117,6 +118,23 @@ namespace POS.Services
             return await _context.Products
                 .Where(p => barcodes.Contains(p.Barcode))
                 .ToListAsync();
+        }
+
+        public async Task<bool> BulkAddProductsAsync(List<Product> products)
+        {
+            try
+            {
+                if (products == null || products.Count == 0)
+                    return false;
+                await _context.BulkInsertAsync(products);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log the error as needed
+                Console.WriteLine("Bulk insert of products failed: " + ex.Message);
+                return false;
+            }
         }
     }
 }

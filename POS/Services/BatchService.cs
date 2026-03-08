@@ -1,10 +1,7 @@
 using POS.Data;
 using POS.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using EFCore.BulkExtensions;
 
 namespace POS.Services
 {
@@ -43,6 +40,21 @@ namespace POS.Services
         public async Task<IEnumerable<Batch>> GetAllBatchesAsync()
         {
             return await _context.Batches.ToListAsync();
+        }
+
+        public async Task<bool> BulkAddBatchesAsync(List<Batch> batches)
+        {
+            try
+            {
+                await _context.BulkInsertAsync(batches);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during bulk insert: {ex.Message}");
+                // Log the exception (ex) here as needed
+                return false;
+            }
         }
     }
 }

@@ -1,11 +1,7 @@
 using POS.Data;
 using POS.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-
+using EFCore.BulkExtensions;
 namespace POS.Services
 {
     public class PurchaseService : IPurchaseService
@@ -40,6 +36,20 @@ namespace POS.Services
         public async Task<IEnumerable<Purchase>> GetAllPurchasesAsync()
         {
             return await _context.Purchases.ToListAsync();
+        }
+
+        public async Task<bool> AddPurchaseBulkAsync(IEnumerable<Purchase> purchases)
+        {
+            try
+            {
+                await _context.BulkInsertAsync(purchases);
+                return true;
+            }
+            catch (Exception)
+            {
+                // Log the exception (ex) as needed
+                return false;
+            }
         }
     }
 }

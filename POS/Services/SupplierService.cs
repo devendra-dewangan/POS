@@ -1,6 +1,7 @@
 using POS.Data;
 using POS.Models;
 using Microsoft.EntityFrameworkCore;
+using EFCore.BulkExtensions;
 
 namespace POS.Services
 {
@@ -67,5 +68,27 @@ namespace POS.Services
                 .Where(s => supplierNames.Contains(s.Name))
                 .ToListAsync();
         }
+
+        public async Task<bool> BulkAddSuppliersAsync(List<Supplier> suppliers)
+        {
+            try
+            {
+                if (suppliers == null || suppliers.Count == 0)
+                    return false;
+
+                await _context.BulkInsertAsync(suppliers);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (you can use a logging framework here)
+                Console.WriteLine($"Error during bulk insert: {ex.Message}");
+                return false;
+            }
+            if (suppliers == null || suppliers.Count == 0)
+                return false;
+
+            await _context.BulkInsertAsync(suppliers);
+        }   
     }
 }
