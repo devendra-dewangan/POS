@@ -5,12 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddEndpointsApiExplorer();
-
 // Add SQLite database context
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=pos.db"));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
+// Add services to the container.
+builder.Services.AddEndpointsApiExplorer();
 
 // Add ExcelReaderService
 builder.Services.AddScoped<ExcelReaderService>();
@@ -25,6 +36,8 @@ builder.Services.AddScoped<IImportService, ImportService>();
 
 var app = builder.Build();
 
+app.UseCors("AllowAll");
+app.MapControllers();
 app.UseHttpsRedirection();
 app.Run();
 
