@@ -35,6 +35,8 @@ steps:
     commands:
       - echo "Running Build Stage"
       - cd $CI_WORKSPACE/POS.UI
+      - pwd
+      - ls -la
       - npm ci
       - npm run build --prod
     when:
