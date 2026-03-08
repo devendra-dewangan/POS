@@ -240,6 +240,7 @@ namespace POS.Services.Import
                     var suppliers = processedRecords
                                     .Select(p => p.Supplier)
                                     .Where(s => s != null && s.Id == 0)
+                                    .Select(s => s!)
                                     .Distinct().ToList();
 
                     // save supplier
@@ -257,6 +258,7 @@ namespace POS.Services.Import
                     var products = processedRecords.SelectMany(p => p.PurchaseItems)
                         .Select(i => i.Product)
                         .Where(p => p != null && p.Id == 0)
+                        .Select(p => p!)
                         .Distinct()
                         .ToList();
                     //save product

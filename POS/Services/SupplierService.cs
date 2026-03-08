@@ -85,10 +85,6 @@ namespace POS.Services
                 Console.WriteLine($"Error during bulk insert: {ex.Message}");
                 return false;
             }
-            if (suppliers == null || suppliers.Count == 0)
-                return false;
-
-            await _context.BulkInsertAsync(suppliers);
         }   
     }
 }
