@@ -51,6 +51,10 @@ if (args.Contains("migrate"))
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
 app.Run();
 

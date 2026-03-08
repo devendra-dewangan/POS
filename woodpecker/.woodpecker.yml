@@ -1,5 +1,5 @@
 steps:
-  build:
+  build-backend:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     volumes:
       - dotnet-cache:/root/.nuget/packages
@@ -11,16 +11,46 @@ steps:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "build" || STAGE == "all" || STAGE == "ut"
+        evaluate: STAGE == "build" || STAGE == "all" 
+  
+  build-frontend:
+    image: node:24 
+    volumes:
+      - node-cache:$CI_WORKSPACE/POS.UI/node_modules
+    commands:
+      - echo "Running Build Stage"
+      - cd $CI_WORKSPACE/POS.UI
+      - npm install
+      - npm run build --prod
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "build" || STAGE == "all"
 
-  unit-tests:
+  ut-backend:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     volumes:
       - dotnet-cache:/root/.nuget/packages
-    depends_on: [ build ]
+    depends_on: [ build-backend ]
     commands:
       - echo "Running Test Stage"
       - dotnet test POS.UnitTests/POS.UnitTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "ut" || STAGE == "all"
+
+  ut-frontend:
+    image: node:24
+    volumes:
+      - node-cache:$CI_WORKSPACE/POS.UI/node_modules
+    depends_on: [ build-frontend ]
+    commands:
+      - cd $CI_WORKSPACE/POS.UI
+      - echo "Running Test Stage"
+      - npm test --prefix --watch=false --browsers=ChromeHeadless
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
@@ -31,7 +61,7 @@ steps:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     volumes:
       - dotnet-cache:/root/.nuget/packages
-    depends_on: [ build ]
+    depends_on: [ build-backend ]
     commands:
       - echo "Running API Tests"
       - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
@@ -45,7 +75,7 @@ steps:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     volumes:
       - dotnet-cache:/root/.nuget/packages
-    depends_on: [ build ]
+    depends_on: [ build-backend ]
     commands:
       - echo "Running Integration Tests"
       - dotnet test POS.IntegrationTests/POS.IntegrationTests.csproj --configuration Release
@@ -57,7 +87,7 @@ steps:
 
   docker-push:
     image: docker:24
-    depends_on: [ build ]
+    depends_on: [ build-backend, build-frontend ]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
