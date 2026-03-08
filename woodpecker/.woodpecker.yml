@@ -13,21 +13,7 @@ steps:
       - event: manual
         evaluate: STAGE == "build" || STAGE == "all" 
   
-  build-frontend:
-    image: node:24 
-    volumes:
-      - node-cache:$CI_WORKSPACE/POS.UI/node_modules
-    commands:
-      - echo "Running Build Stage"
-      - cd $CI_WORKSPACE/POS.UI
-      - npm install
-      - npm run build --prod
-    when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "build" || STAGE == "all"
-
+        
   ut-backend:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     volumes:
@@ -42,10 +28,25 @@ steps:
       - event: manual
         evaluate: STAGE == "ut" || STAGE == "all"
 
+  build-frontend:
+    image: node:24 
+    volumes:
+      - node-cache:/root/.npm
+    commands:
+      - echo "Running Build Stage"
+      - cd $CI_WORKSPACE/POS.UI
+      - npm install
+      - npm run build --prod
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "build" || STAGE == "all"
+
   ut-frontend:
     image: node:24
     volumes:
-      - node-cache:$CI_WORKSPACE/POS.UI/node_modules
+      - node-cache:/root/.npm
     depends_on: [ build-frontend ]
     commands:
       - cd $CI_WORKSPACE/POS.UI
