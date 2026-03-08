@@ -78,6 +78,27 @@ steps:
       - event: manual
         evaluate: STAGE == "push" || STAGE == "all"
 
+  test-migrate:
+    image: docker:24
+    depends_on: [ docker-push ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    commands:
+      - echo "$DOCKER_PASSWORD" | docker login reg-devdew.chub-beta.ts.net -u "$DOCKER_USERNAME" --password-stdin
+      - cd $CI_WORKSPACE
+      - docker compose pull
+      - docker compose run --rm migrate
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "test-migrate" || STAGE == "all"
+
   test-deploy:
     image: docker:24
     depends_on: [ docker-push ]
