@@ -7,7 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add SQLite database context
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=pos.db"));
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    ));
 
 builder.Services.AddCors(options =>
 {
@@ -36,8 +38,8 @@ builder.Services.AddScoped<IImportService, ImportService>();
 
 var app = builder.Build();
 
+app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.MapControllers();
-app.UseHttpsRedirection();
 app.Run();
 
