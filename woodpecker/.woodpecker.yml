@@ -51,7 +51,7 @@ steps:
     commands:
       - cd $CI_WORKSPACE/POS.UI
       - echo "Running Test Stage"
-      - npm test -- --prefix --watch=false --browsers=ChromeHeadless
+      - npm test -- --watch=false --browsers=ChromeHeadless
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
