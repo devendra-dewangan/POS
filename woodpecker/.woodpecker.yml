@@ -35,7 +35,7 @@ steps:
     commands:
       - echo "Running Build Stage"
       - cd $CI_WORKSPACE/POS.UI
-      - npm install
+      - npm ci
       - npm run build --prod
     when:
       - event: push
