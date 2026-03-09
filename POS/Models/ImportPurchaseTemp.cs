@@ -10,9 +10,6 @@ namespace POS.Models
         [Key]
         public int Id { get; set; }
         
-        [Required]
-        public Guid ImportId { get; set; }
-        
         // Excel row data fields
         public string InvoiceNo { get; set; } = string.Empty;
         public DateTime InvoiceDate { get; set; }
@@ -49,12 +46,12 @@ namespace POS.Models
         public string ExpDate { get; set; } = string.Empty;
         public string IMEI1 { get; set; } = string.Empty;
         public string IMEI2 { get; set; } = string.Empty;
-        
-        // Import metadata
-        public string Status { get; set; } = "Pending"; // Pending, Validating, Processing, Completed, Failed
-        public string ErrorMessage { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? ProcessedAt { get; set; }
-        public string FileName { get; set; } = string.Empty;
+
+        public ImportStatus Status { get; set; } = ImportStatus.NotStarted;
+
+        [Required]
+        public int ImportId { get; set; }
+
+        public ImportInfo ImportInfo { get; set; } = null!;
     }
 }

@@ -22,9 +22,6 @@ namespace POS.Models
         public string Barcode { get; set; } = string.Empty;
         
         [JsonIgnore]
-        public ICollection<Sale> Sales { get; set; } = new List<Sale>();
-        
-        [JsonIgnore]
         public ICollection<Batch> Batches { get; set; } = new List<Batch>();
     }
 }

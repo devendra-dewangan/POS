@@ -1,14 +1,11 @@
+using System.Text;
 using ExcelDataReader;
-using Microsoft.AspNetCore.Http;
-using System.Reflection;
-using System.Threading;
 
 public class ExcelReaderService
 {
-    private const int BatchSize = 1000;
-
     public async Task ReadExcelAsync<T>(
         IFormFile file,
+        int batchSize,
         Func<List<T>, int, Task> batchHandler,
         Action<ImportError> errorHandler,
         Action<ImportProgress> progressHandler,
@@ -22,7 +19,7 @@ public class ExcelReaderService
         using var reader = ExcelReaderFactory.CreateReader(stream);
 
         var properties = typeof(T).GetProperties();
-        var buffer = new List<T>(BatchSize);
+        var buffer = new List<T>(batchSize);
 
         int rowNumber = 0;
         bool isHeader = true;
@@ -64,7 +61,7 @@ public class ExcelReaderService
 
                 buffer.Add(obj);
 
-                if (buffer.Count >= BatchSize)
+                if (buffer.Count >= batchSize)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -94,6 +91,28 @@ public class ExcelReaderService
 
             await batchHandler(buffer,rowNumber);
         }
+    }
+
+    public int GetTotalRows(IFormFile file)
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        int totalRows = 0;
+
+        using (var stream = file.OpenReadStream())
+        using (var reader = ExcelReaderFactory.CreateReader(stream))
+        {
+            do
+            {
+                while (reader.Read())
+                {
+                    totalRows++;
+                }
+            }
+            while (reader.NextResult()); // next sheet
+        }
+
+        return totalRows;
     }
 }
 

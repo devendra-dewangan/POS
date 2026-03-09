@@ -16,6 +16,7 @@ namespace POS.Data
         public DbSet<Batch> Batches { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<Buyer> Buyers { get; set; }
+        public DbSet<ImportInfo> ImportInfos { get; set; }
         public DbSet<ImportPurchaseTemp> ImportPurchaseTemp { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -100,6 +101,29 @@ namespace POS.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            });
+
+            // Configure ImportInfo entity
+            modelBuilder.Entity<ImportInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.TotalRecords).IsRequired();
+                entity.Property(e => e.Status).IsRequired();
+                entity.Property(e => e.ImportType).IsRequired();
+                entity.Property(e => e.ImportDate).IsRequired();
+            });
+
+            // Configure ImportPurchaseTemp entity
+            modelBuilder.Entity<ImportPurchaseTemp>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Configure relationship with ImportInfo
+                entity.HasOne(e => e.ImportInfo)
+                      .WithMany(i => i.ImportPurchaseTemps)
+                      .HasForeignKey(e => e.ImportId)
+                      .OnDelete(DeleteBehavior.Cascade); // Cascade delete when ImportInfo is deleted
             });
 
             base.OnModelCreating(modelBuilder);

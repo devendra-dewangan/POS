@@ -8,10 +8,13 @@ namespace POS.Services.Import
         private readonly IProductService _productService;
         private readonly ISupplierService _supplierService;
 
-        public ImportDataProcessor(IProductService productService, ISupplierService supplierService)
+        private readonly ILogger _logger;
+
+        public ImportDataProcessor(IProductService productService, ISupplierService supplierService, ILogger logger)
         {
             _productService = productService;
             _supplierService = supplierService;
+            _logger = logger;
         }
 
         public async Task<List<Purchase>> ProcessPurchaseDataFromTempTable(List<ImportPurchaseTemp> tempRecords)
@@ -124,20 +127,6 @@ namespace POS.Services.Import
             return errors;
         }
 
-        // Helper class for validation errors
-        public class ValidationError
-        {
-            public int RecordId { get; set; }
-            public string ErrorMessage { get; set; }
-
-            public ValidationError(int recordId, string errorMessage)
-            {
-                RecordId = recordId;
-                ErrorMessage = errorMessage;
-            }
-        }
-
-
         public async Task<List<string>> ValidateRowDataAsync(PurchaseExcelRow rowData)
         {
             var errors = new List<string>();
@@ -162,6 +151,18 @@ namespace POS.Services.Import
                 errors.Add("TotalAmount cannot be negative");
 
             return errors;
+        }
+    }
+
+    public class ValidationError
+    {
+        public int RecordId { get; set; }
+        public string ErrorMessage { get; set; }
+
+        public ValidationError(int recordId, string errorMessage)
+        {
+            RecordId = recordId;
+            ErrorMessage = errorMessage;
         }
     }
 }

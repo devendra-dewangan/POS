@@ -15,7 +15,35 @@ namespace POS.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
+
+            modelBuilder.Entity("ImportInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ImportDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ImportType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalRecords")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ImportInfos");
+                });
 
             modelBuilder.Entity("POS.Models.Batch", b =>
                 {
@@ -99,24 +127,13 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("DiscountPercent")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ErrorMessage")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ExpDate")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -142,8 +159,8 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("ImportId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("ImportId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Info")
                         .IsRequired()
@@ -158,9 +175,6 @@ namespace POS.Migrations
 
                     b.Property<string>("MfgDate")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProductCode")
@@ -195,9 +209,8 @@ namespace POS.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("SupplierInvoiceDate")
                         .HasColumnType("TEXT");
@@ -222,6 +235,8 @@ namespace POS.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ImportId");
 
                     b.ToTable("ImportPurchaseTemp");
                 });
@@ -293,9 +308,6 @@ namespace POS.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("TEXT");
 
@@ -305,8 +317,6 @@ namespace POS.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BuyerId");
-
-                    b.HasIndex("ProductId");
 
                     b.ToTable("Sales");
                 });
@@ -374,6 +384,17 @@ namespace POS.Migrations
                     b.Navigation("Purchase");
                 });
 
+            modelBuilder.Entity("POS.Models.ImportPurchaseTemp", b =>
+                {
+                    b.HasOne("ImportInfo", "ImportInfo")
+                        .WithMany("ImportPurchaseTemps")
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ImportInfo");
+                });
+
             modelBuilder.Entity("POS.Models.Purchase", b =>
                 {
                     b.HasOne("POS.Models.Supplier", "Supplier")
@@ -392,10 +413,6 @@ namespace POS.Migrations
                         .HasForeignKey("BuyerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("POS.Models.Product", null)
-                        .WithMany("Sales")
-                        .HasForeignKey("ProductId");
 
                     b.Navigation("Buyer");
                 });
@@ -419,6 +436,11 @@ namespace POS.Migrations
                     b.Navigation("Sale");
                 });
 
+            modelBuilder.Entity("ImportInfo", b =>
+                {
+                    b.Navigation("ImportPurchaseTemps");
+                });
+
             modelBuilder.Entity("POS.Models.Buyer", b =>
                 {
                     b.Navigation("Sales");
@@ -427,8 +449,6 @@ namespace POS.Migrations
             modelBuilder.Entity("POS.Models.Product", b =>
                 {
                     b.Navigation("Batches");
-
-                    b.Navigation("Sales");
                 });
 
             modelBuilder.Entity("POS.Models.Purchase", b =>

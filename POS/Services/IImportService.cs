@@ -10,6 +10,6 @@ namespace POS.Services.Import
     {
         Task<bool> ImportPurchaseDataAsync(IFormFile file);
         Task<bool> ImportSaleDataAsync(IFormFile file);
-        Task<bool> DeleteImportDataAsync(Guid importId);
+        Task<bool> DeleteImportDataAsync(int importId);
     }
 }

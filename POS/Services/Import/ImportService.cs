@@ -2,7 +2,6 @@ using POS.Data;
 using POS.Models;
 using POS.Services.ImportModels;
 using Microsoft.EntityFrameworkCore;
-using static POS.Services.Import.ImportDataProcessor;
 using EFCore.BulkExtensions;
 
 namespace POS.Services.Import
@@ -15,8 +14,12 @@ namespace POS.Services.Import
         private readonly IPurchaseService _purchaseService;
         private readonly ISupplierService _supplierService;
         private readonly IProductService _productService;
+        private readonly CancellationTokenSource _cancellationTokenSource;
+        private readonly Dictionary<int, List<ValidationError>> _validationErrors;
+        private readonly List<ImportError> _errorList;
+        private ImportInfo _importInfo;
         private const int BatchSizeErrors = 100;
-        private const int BatchSize = 1000;
+        private const int BatchSize = 5000;
 
         private readonly ILogger<ImportService> _logger;
 
@@ -34,69 +37,75 @@ namespace POS.Services.Import
             _supplierService = supplierService;
             _productService = productService;
             _purchaseService = purchaseService;
-            _dataProcessor = new ImportDataProcessor(_productService, _supplierService);
             _logger = logger;
+
+            _cancellationTokenSource = new CancellationTokenSource();
+            _validationErrors = new Dictionary<int, List<ValidationError>>();
+            _errorList = new List<ImportError>();
+            _importInfo = new ImportInfo();
+            _dataProcessor = new ImportDataProcessor(_productService, _supplierService, _logger);
         }
 
         public async Task<bool> ImportPurchaseDataAsync(IFormFile file)
-        {
-            var importId = Guid.NewGuid();
-            var cancellationTokenSource = new CancellationTokenSource();
-            var validationErrors = new Dictionary<int, List<ValidationError>>();
-            var errorList = new List<ImportError>();
+        {             
+            _importInfo.ImportType = ImportType.Purchase;
+            _importInfo.FileName = file.FileName;
+            _importInfo.TotalRecords = _excelReaderService.GetTotalRows(file);
+            
+            await CreateImportInfoAsync(_importInfo);   
+
             try
             {
                 await _excelReaderService.ReadExcelAsync<PurchaseExcelRow>(
-                            file,
-                // batch handler
-                async (batch, rowNumber) =>
-                {
-                    await ProcessBatch(batch, rowNumber,importId, file, validationErrors, cancellationTokenSource);
-
-                },
-
-                // error handler
-                error =>
-                {
-                    errorList.Add(error);
-                    _logger.LogError($"Row {error.RowNumber} error: {error.Message}");
-                    if (errorList.Count > BatchSizeErrors)
-                    {
-                        _logger.LogWarning("Too many errors, cancelling import.");
-                        cancellationTokenSource.Cancel();
-                    }
-                },
-
-                // progress handler
-                progress =>
-                {
-                    _logger.LogInformation($"Processed rows: {progress.ProcessedRows}");
-                }
-                ,cancellationTokenSource.Token
+                    file,
+                    BatchSize,
+                    // batch handler
+                    ProcessBatch,
+                    // error handler
+                    HandleBatchError,
+                    // progress handler
+                    HandleBatchProgress,
+                    _cancellationTokenSource.Token
                 );
                 
-                if (validationErrors.Count != 0 || errorList.Count != 0)
+                if (_validationErrors.Count != 0 || _errorList.Count != 0)
                 {
-                    _logger.LogInformation($"Import completed with {validationErrors.Count} records having validation errors.");
-                    await DeleteImportDataAsync(importId);
+                    _logger.LogInformation($"Import completed with {_validationErrors.Count} records having validation errors.");
+                    await DeleteImportDataAsync(_importInfo.Id);
                     return false;
                 }
 
                 // Process data with validation and transaction handling
-                return await ProcessDataWithValidationAndTransaction(importId);
+                return await ProcessDataWithValidationAndTransaction(_importInfo.Id);
 
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Log error
-                await DeleteImportDataAsync(importId);
+                _logger.LogError($"Error importing purchase data: {ex.Message}");
+                await DeleteImportDataAsync(_importInfo.Id);
                 return false;
             }
         }
 
+        private void HandleBatchProgress(ImportProgress progress)
+        {
+            _logger.LogInformation($"Processed rows: {progress.ProcessedRows} , Total rows percentage: {progress.ProcessedRows / (double)_importInfo.TotalRecords * 100:F2}%");
+        }
 
-        private async Task ProcessBatch(List<PurchaseExcelRow> rowDataBatch, int rowNumber, Guid importId, IFormFile file, Dictionary<int, List<ValidationError>> validationErrors, CancellationTokenSource cancellationTokenSource)
+        private void HandleBatchError(ImportError error)
+        {
+            _errorList.Add(error);
+            _logger.LogError($"Row {error.RowNumber} error: {error.Message}");
+            if (_errorList.Count > BatchSizeErrors)
+            {
+                _logger.LogWarning("Too many errors, cancelling import.");
+                _cancellationTokenSource.Cancel();
+            }
+        }
+
+        private async Task ProcessBatch(List<PurchaseExcelRow> rowDataBatch, int rowNumber)
         {
             var tempRecords = new List<ImportPurchaseTemp>();
             var rowCount = rowNumber;
@@ -108,7 +117,7 @@ namespace POS.Services.Import
                     rowCount++;
                     var tempRecord = new ImportPurchaseTemp
                     {
-                        ImportId = importId,
+                        ImportId = _importInfo.Id,
                         InvoiceNo = rowData.InvoiceNo,
                         InvoiceDate = rowData.InvoiceDate,
                         TaxType = rowData.TaxType,
@@ -143,29 +152,22 @@ namespace POS.Services.Import
                         MfgDate = rowData.MfgDate,
                         ExpDate = rowData.ExpDate,
                         IMEI1 = rowData.IMEI1,
-                        IMEI2 = rowData.IMEI2,
-                        Status = "Pending",
-                        FileName = file.FileName,
-                        CreatedAt = DateTime.UtcNow
+                        IMEI2 = rowData.IMEI2
                     };
 
                     var recordValidationErrors = _dataProcessor.ValidateData(tempRecord,rowCount);
-                    if (recordValidationErrors.Any())
-                    {
-                        validationErrors[tempRecord.Id] = recordValidationErrors;
-                    }
-                    else
+                    if (recordValidationErrors.Count == 0)
                     {
                         tempRecords.Add(tempRecord);
-                    }
-
-                    if (validationErrors.Count > BatchSizeErrors)
-                    {
-                        _logger.LogError($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
-                        cancellationTokenSource.Cancel();
                         return;
                     }
-
+                    
+                    _validationErrors[tempRecord.Id] = recordValidationErrors;
+                    if (_validationErrors.Count > BatchSizeErrors)
+                    {
+                        _logger.LogError($"Batch has {_validationErrors.Count} records with validation errors. Skipping batch.");
+                        _cancellationTokenSource.Cancel();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -176,9 +178,9 @@ namespace POS.Services.Import
 
             try
             {
-                if (validationErrors.Count != 0)
+                if (_validationErrors.Count != 0)
                 {
-                    _logger.LogError($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
+                    _logger.LogError($"Batch has {_validationErrors.Count} records with validation errors. Skipping batch.");
                     return;
                 }
                 // Save batch to database
@@ -213,7 +215,7 @@ namespace POS.Services.Import
             }
         }
 
-        private async Task<bool> ProcessDataWithValidationAndTransaction(Guid importId)
+        private async Task<bool> ProcessDataWithValidationAndTransaction(int importId)
         {
             
             // Use transaction only for the final processing and saving
@@ -222,19 +224,14 @@ namespace POS.Services.Import
             try
             {
 
-                while (true)
+                for (int i = 0; i < Math.Ceiling((double)_importInfo.TotalRecords / BatchSize); i++)
                 {
                     // Get next batch of pending records
                     var batchRecords = await _context.ImportPurchaseTemp
-                        .Where(t => t.ImportId == importId && t.Status == "Pending")
-                        .OrderBy(t => t.Id)
+                        .Where(t => t.ImportId == importId && t.Status == ImportStatus.NotStarted)
+                        .Skip(i * BatchSize)
                         .Take(BatchSize)
                         .ToListAsync();
-
-                    if (!batchRecords.Any())
-                    {
-                        break; // No more records to process
-                    }
 
                     // Process the batch
                     var processedRecords =
@@ -286,7 +283,7 @@ namespace POS.Services.Import
                             i.ProductId = i.Product != null ? i.Product.Id : i.ProductId;
                         }
                     });
-                    
+
                     //save purchase 
                     var saveResult = await _purchaseService.AddPurchaseBulkAsync(processedRecords);
                     if (!saveResult)
@@ -295,7 +292,13 @@ namespace POS.Services.Import
                         await transaction.RollbackAsync();
                         return false;
                     }
+
+                    // Update temp records status to Processed
+                    batchRecords.ForEach(r => r.Status = ImportStatus.Completed);
+                    await _context.BulkUpdateAsync(batchRecords);
+
                 }
+
 
                 // Commit the transaction if all processing is successful
                 await transaction.CommitAsync();
@@ -310,21 +313,18 @@ namespace POS.Services.Import
             }
         }
 
-        public async Task<bool> DeleteImportDataAsync(Guid importId)
+        public async Task<bool> DeleteImportDataAsync(int importId)
         {
             var records = await _context.ImportPurchaseTemp
-                .Where(t => t.ImportId == importId)
-                .ToListAsync();
-
-            if (!records.Any())
-            {
-                return false;
-            }
-
-            _context.ImportPurchaseTemp.RemoveRange(records);
-            await _context.SaveChangesAsync();
-            return true;
+            .Where(t => t.ImportId == importId)
+            .ExecuteDeleteAsync();
+            return records > 0;
         }
-    
+
+        public async Task<int> CreateImportInfoAsync(ImportInfo importInfo)
+        {
+            await _context.ImportInfos.AddAsync(importInfo);
+            return await _context.SaveChangesAsync();
+        }
     }
 }
