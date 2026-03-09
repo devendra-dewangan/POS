@@ -112,3 +112,6 @@ POS.UI/dist/
 POS.UI/build/
 POS.UI/node_modules/
 POS.UI/.vscode/
+
+#webroot
+POS/wwwroot/

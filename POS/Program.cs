@@ -2,8 +2,13 @@ using POS.Data;
 using POS.Services.Import;
 using POS.Services;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
 
@@ -38,6 +43,11 @@ builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IBuyerService, BuyerService>();
 builder.Services.AddScoped<IImportService, ImportService>();
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<DevSystemMetricsLogger>();
+}
+
 var app = builder.Build();
 
 if (args.Contains("migrate"))
@@ -45,7 +55,7 @@ if (args.Contains("migrate"))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-    Console.WriteLine("Database migration completed.");
+    Log.Logger.Information("Database migration completed.");
     return;
 }
 

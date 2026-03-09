@@ -8,10 +8,12 @@ namespace POS.Services
     public class SupplierService : ISupplierService
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<SupplierService> _logger;
 
-        public SupplierService(AppDbContext context)
+        public SupplierService(AppDbContext context, ILogger<SupplierService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<Supplier> AddSupplierAsync(string supplierName)
@@ -82,7 +84,7 @@ namespace POS.Services
             catch (Exception ex)
             {
                 // Log the exception (you can use a logging framework here)
-                Console.WriteLine($"Error during bulk insert: {ex.Message}");
+                _logger.LogError($"Error during bulk insert: {ex.Message}");
                 return false;
             }
         }   

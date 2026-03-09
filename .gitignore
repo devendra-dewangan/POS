@@ -65,3 +65,6 @@ POS/Migrations/*.Designer.cs
 
 #test
 *.feature.cs
+
+#wwwroot
+POS/wwwroot/

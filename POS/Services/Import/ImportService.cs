@@ -18,12 +18,15 @@ namespace POS.Services.Import
         private const int BatchSizeErrors = 100;
         private const int BatchSize = 1000;
 
+        private readonly ILogger<ImportService> _logger;
+
         public ImportService(
             AppDbContext context,
             ExcelReaderService excelReaderService,
             IProductService productService,
             ISupplierService supplierService,
-            IPurchaseService purchaseService
+            IPurchaseService purchaseService,
+            ILogger<ImportService> logger
             )
         {
             _context = context;
@@ -32,6 +35,7 @@ namespace POS.Services.Import
             _productService = productService;
             _purchaseService = purchaseService;
             _dataProcessor = new ImportDataProcessor(_productService, _supplierService);
+            _logger = logger;
         }
 
         public async Task<bool> ImportPurchaseDataAsync(IFormFile file)
@@ -55,10 +59,10 @@ namespace POS.Services.Import
                 error =>
                 {
                     errorList.Add(error);
-                    Console.WriteLine($"Row {error.RowNumber} error: {error.Message}");
+                    _logger.LogError($"Row {error.RowNumber} error: {error.Message}");
                     if (errorList.Count > BatchSizeErrors)
                     {
-                        Console.WriteLine("Too many errors, cancelling import.");
+                        _logger.LogWarning("Too many errors, cancelling import.");
                         cancellationTokenSource.Cancel();
                     }
                 },
@@ -66,14 +70,14 @@ namespace POS.Services.Import
                 // progress handler
                 progress =>
                 {
-                    Console.WriteLine($"Processed rows: {progress.ProcessedRows}");
+                    _logger.LogInformation($"Processed rows: {progress.ProcessedRows}");
                 }
                 ,cancellationTokenSource.Token
                 );
                 
-                if (validationErrors.Any() || errorList.Any())
+                if (validationErrors.Count != 0 || errorList.Count != 0)
                 {
-                    Console.WriteLine($"Import completed with {validationErrors.Count} records having validation errors."); 
+                    _logger.LogInformation($"Import completed with {validationErrors.Count} records having validation errors.");
                     await DeleteImportDataAsync(importId);
                     return false;
                 }
@@ -157,7 +161,7 @@ namespace POS.Services.Import
 
                     if (validationErrors.Count > BatchSizeErrors)
                     {
-                        Console.WriteLine($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
+                        _logger.LogError($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
                         cancellationTokenSource.Cancel();
                         return;
                     }
@@ -166,15 +170,15 @@ namespace POS.Services.Import
                 catch (Exception ex)
                 {
                     // Log error and skip this record
-                    Console.WriteLine($"Error processing Excel batch: {ex.Message}");
+                    _logger.LogError($"Error processing Excel batch: {ex.Message}");
                 }
             }
 
             try
             {
-                if (validationErrors.Any())
+                if (validationErrors.Count != 0)
                 {
-                    Console.WriteLine($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
+                    _logger.LogError($"Batch has {validationErrors.Count} records with validation errors. Skipping batch.");
                     return;
                 }
                 // Save batch to database
@@ -183,7 +187,7 @@ namespace POS.Services.Import
             catch (Exception ex)
             {
                 // Log error
-                Console.WriteLine($"Error saving batch to database: {ex.Message}");
+                _logger.LogError($"Error saving batch to database: {ex.Message}");
                 throw;
             }
         }
@@ -300,7 +304,7 @@ namespace POS.Services.Import
             catch (Exception ex)
             {
                 // Rollback transaction on any error
-                Console.WriteLine($"Error processing data with transaction: {ex.Message}");
+                _logger.LogError($"Error processing data with transaction: {ex.Message}");
                 await transaction.RollbackAsync();
                 return false;
             }

@@ -8,6 +8,7 @@ services:
     command: ["dotnet", "POS.dll", "migrate"]
     volumes:
       - pos-db:/app/data
+      - ./logs:/app/logs
     networks:
       - app-net
     restart: "no"
@@ -23,6 +24,7 @@ services:
     restart: unless-stopped
     volumes:
       - pos-db:/app/data
+      - ./logs:/app/logs
     networks:
       - app-net
     environment:
