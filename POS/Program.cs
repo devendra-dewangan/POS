@@ -42,6 +42,8 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IBuyerService, BuyerService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddSingleton<ImportQueue>();
+builder.Services.AddHostedService<ImportWorker>();
 
 if (builder.Environment.IsDevelopment())
 {

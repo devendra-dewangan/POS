@@ -126,7 +126,11 @@ namespace POS.Services
             {
                 if (products == null || products.Count == 0)
                     return false;
-                await _context.BulkInsertAsync(products);
+                await _context.BulkInsertAsync(products,new BulkConfig
+                {
+                    PreserveInsertOrder = true,
+                    SetOutputIdentity = true
+                });
                 return true;
             }
             catch (Exception ex)

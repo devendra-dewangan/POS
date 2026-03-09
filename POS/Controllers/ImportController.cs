@@ -12,11 +12,11 @@ namespace POS.Controllers
     [Route("api/[controller]")]
     public class ImportController : ControllerBase
     {
-        private readonly IImportService _importService;
+        private readonly ImportQueue _queue;
 
-        public ImportController(IImportService importService)
+        public ImportController(ImportQueue queue)
         {
-            _importService = importService;
+            _queue = queue;
         }
 
         // GET: api/import/purchase/columns
@@ -36,30 +36,33 @@ namespace POS.Controllers
 
         // POST: api/import/purchase
         [HttpPost("purchase")]
-        public ActionResult ImportPurchaseExcel()
+        public async Task<ActionResult> ImportPurchaseExcel()
         {
             try
             {
                 var file = Request.Form.Files.FirstOrDefault();
+                var uploads = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+                Directory.CreateDirectory(uploads);
+
+                var filePath = Path.Combine(uploads, Guid.NewGuid() + Path.GetExtension(file?.FileName));
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+                
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest("No file uploaded.");
                 }
 
                 // Start import process asynchronously
-                _ = Task.Run(async () =>
+                await _queue.QueueAsync(new ImportJob
                 {
-                    try
-                    {
-                        await _importService.ImportPurchaseDataAsync(file);
-                        // TODO: Implement notification mechanism (email, WebSocket, etc.)
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log error
-                        Console.WriteLine($"Error processing purchase import: {ex.Message}");
-                    }
+                    FilePath = filePath
                 });
+                        // TODO: Implement notification mechanism (email, WebSocket, etc.)
+                    
 
                 return Ok(new
                 {
@@ -86,11 +89,11 @@ namespace POS.Controllers
                     return BadRequest("No file uploaded.");
                 }
 
-                var result = await _importService.ImportSaleDataAsync(file);
+                // var result = await _importService.ImportSaleDataAsync(file);
 
                 return Ok(new
                 {
-                    message = result ? "Sale data imported successfully" : "Failed to import sale data",
+                    // message = result ? "Sale data imported successfully" : "Failed to import sale data",
                     fileName = file.FileName,
                     uploadTime = DateTime.UtcNow
                 });

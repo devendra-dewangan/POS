@@ -14,6 +14,8 @@ namespace POS.Services.Import
         private readonly IPurchaseService _purchaseService;
         private readonly ISupplierService _supplierService;
         private readonly IProductService _productService;
+
+        private readonly IBatchService _batchService;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly Dictionary<int, List<ValidationError>> _validationErrors;
         private readonly List<ImportError> _errorList;
@@ -29,6 +31,7 @@ namespace POS.Services.Import
             IProductService productService,
             ISupplierService supplierService,
             IPurchaseService purchaseService,
+            IBatchService batchService,
             ILogger<ImportService> logger
             )
         {
@@ -37,27 +40,28 @@ namespace POS.Services.Import
             _supplierService = supplierService;
             _productService = productService;
             _purchaseService = purchaseService;
+            _batchService = batchService;
             _logger = logger;
 
             _cancellationTokenSource = new CancellationTokenSource();
             _validationErrors = new Dictionary<int, List<ValidationError>>();
             _errorList = new List<ImportError>();
             _importInfo = new ImportInfo();
-            _dataProcessor = new ImportDataProcessor(_productService, _supplierService, _logger);
+            _dataProcessor = new ImportDataProcessor(_productService, _supplierService, _purchaseService, _logger);
         }
 
-        public async Task<bool> ImportPurchaseDataAsync(IFormFile file)
+        public async Task<bool> ImportPurchaseDataAsync(string filepath)
         {             
             _importInfo.ImportType = ImportType.Purchase;
-            _importInfo.FileName = file.FileName;
-            _importInfo.TotalRecords = _excelReaderService.GetTotalRows(file);
+            _importInfo.FileName = Path.GetFileName(filepath);
+            _importInfo.TotalRecords =  await _excelReaderService.GetTotalRows(filepath);
             
             await CreateImportInfoAsync(_importInfo);   
 
             try
             {
                 await _excelReaderService.ReadExcelAsync<PurchaseExcelRow>(
-                    file,
+                    filepath,
                     BatchSize,
                     // batch handler
                     ProcessBatch,
@@ -159,7 +163,7 @@ namespace POS.Services.Import
                     if (recordValidationErrors.Count == 0)
                     {
                         tempRecords.Add(tempRecord);
-                        return;
+                        continue;
                     }
                     
                     _validationErrors[tempRecord.Id] = recordValidationErrors;
@@ -183,6 +187,8 @@ namespace POS.Services.Import
                     _logger.LogError($"Batch has {_validationErrors.Count} records with validation errors. Skipping batch.");
                     return;
                 }
+
+                _logger.LogInformation($"Batch {rowNumber / BatchSize}: Saving {tempRecords.Count} records to database.");
                 // Save batch to database
                 await _context.BulkInsertAsync(tempRecords);
             }
@@ -194,7 +200,7 @@ namespace POS.Services.Import
             }
         }
 
-        public async Task<bool> ImportSaleDataAsync(IFormFile file)
+        public async Task<bool> ImportSaleDataAsync(string filePath)
         {
             try
             {
@@ -239,56 +245,82 @@ namespace POS.Services.Import
 
 
                     var suppliers = processedRecords
-                                    .Select(p => p.Supplier)
+                                    .Select(p => p.Purchase?.Supplier)
                                     .Where(s => s != null && s.Id == 0)
                                     .Select(s => s!)
+                                    .Distinct() //by reference
                                     .Distinct().ToList();
 
+
                     // save supplier
-                    if (suppliers.Any())
+                    if (suppliers.Count != 0)
                     {
                         var isSupplierAdded = await _supplierService.BulkAddSuppliersAsync(suppliers);
                         if (!isSupplierAdded)
                         {
                             // Processing failed - rollback transaction
+                            _logger.LogError($"Batch {i + 1}: Failed to add suppliers. Rolling back transaction.");
                             await transaction.RollbackAsync();
                             return false;
                         }
                     }
 
-                    var products = processedRecords.SelectMany(p => p.PurchaseItems)
+                    var products = processedRecords
                         .Select(i => i.Product)
                         .Where(p => p != null && p.Id == 0)
                         .Select(p => p!)
-                        .Distinct()
+                        .Distinct() //by reference
                         .ToList();
+                        
                     //save product
-                    if (products.Any())
+                    if (products.Count != 0)
                     {
                         var isProductAdded = await _productService.BulkAddProductsAsync(products);
                         if (!isProductAdded)
                         {
                             // Processing failed - rollback transaction
+                            _logger.LogError($"Batch {i + 1}: Failed to add products. Rolling back transaction.");
                             await transaction.RollbackAsync();
                             return false;
                         }
                     }
+
+                    var invoices = processedRecords.Select(p => p.Purchase)
+                        .Where(p => p != null && p.Id == 0)
+                        .Select(p => p!)
+                        .Distinct() //by reference
+                        .ToList();
+
+
+                    invoices.ForEach(inv =>
+                    {
+                        inv.SupplierId = inv.Supplier != null ? inv.Supplier.Id : inv.SupplierId;
+                    });
                     
 
-                    processedRecords.ForEach(p =>
+                    var savedInvoices = await _purchaseService.AddPurchaseBulkAsync(invoices);
+
+                    if (!savedInvoices)
                     {
-                        p.SupplierId = p.Supplier != null ? p.Supplier.Id : p.SupplierId;
-                        foreach (var i in p.PurchaseItems)
-                        {
-                            i.ProductId = i.Product != null ? i.Product.Id : i.ProductId;
-                        }
+                        // Processing failed - rollback transaction
+                        _logger.LogError($"Batch {i + 1}: Failed to add invoices. Rolling back transaction.");
+                        await transaction.RollbackAsync();
+                        return false;
+                    }
+                        
+                    processedRecords.ForEach(r =>
+                    {
+                        r.PurchaseId = r.Purchase != null ? r.Purchase.Id : r.PurchaseId;
+                        r.ProductId = r.Product != null ? r.Product.Id : r.ProductId;
                     });
+                    
 
                     //save purchase 
-                    var saveResult = await _purchaseService.AddPurchaseBulkAsync(processedRecords);
+                    var saveResult = await _batchService.BulkAddBatchesAsync(processedRecords);
                     if (!saveResult)
                     {
                         // Processing failed - rollback transaction
+                        _logger.LogError($"Batch {i + 1}: Failed to save purchases. Rolling back transaction.");
                         await transaction.RollbackAsync();
                         return false;
                     }

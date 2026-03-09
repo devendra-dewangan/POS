@@ -42,14 +42,29 @@ namespace POS.Services
         {
             try
             {
-                await _context.BulkInsertAsync(purchases);
+                await _context.BulkInsertAsync(purchases, new BulkConfig
+                {
+                    PreserveInsertOrder = true,
+                    SetOutputIdentity = true
+                });
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Log the exception (ex) as needed
+                System.Console.WriteLine($"Error adding purchases in bulk: {ex.Message}");
                 return false;
             }
+        }
+
+        public async Task<IEnumerable<Purchase>> GetPurchasesByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers)
+        {
+            if (invoiceNumbers == null || invoiceNumbers.Any() == false)
+                return [];
+
+            return await _context.Purchases
+                .Where(p => invoiceNumbers.Contains(p.InvoiceNumber))
+                .ToListAsync();
         }
     }
 }

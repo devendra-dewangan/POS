@@ -78,7 +78,11 @@ namespace POS.Services
                 if (suppliers == null || suppliers.Count == 0)
                     return false;
 
-                await _context.BulkInsertAsync(suppliers);
+                await _context.BulkInsertAsync(suppliers, new BulkConfig
+                {
+                    PreserveInsertOrder = true,
+                    SetOutputIdentity = true
+                });
                 return true;
             }
             catch (Exception ex)

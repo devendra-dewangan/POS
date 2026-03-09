@@ -46,7 +46,11 @@ namespace POS.Services
         {
             try
             {
-                await _context.BulkInsertAsync(batches);
+                await _context.BulkInsertAsync(batches,new BulkConfig
+                {
+                    PreserveInsertOrder = true,
+                    SetOutputIdentity = true
+                });
                 return true;
             }
             catch (Exception ex)

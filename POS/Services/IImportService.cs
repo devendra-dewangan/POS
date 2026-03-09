@@ -8,8 +8,8 @@ namespace POS.Services.Import
 {
     public interface IImportService
     {
-        Task<bool> ImportPurchaseDataAsync(IFormFile file);
-        Task<bool> ImportSaleDataAsync(IFormFile file);
+        Task<bool> ImportPurchaseDataAsync(string file);
+        Task<bool> ImportSaleDataAsync(string file);
         Task<bool> DeleteImportDataAsync(int importId);
     }
 }

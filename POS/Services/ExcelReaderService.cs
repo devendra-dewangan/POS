@@ -1,10 +1,11 @@
 using System.Text;
 using ExcelDataReader;
+using ExcelDataReader.Log;
 
 public class ExcelReaderService
 {
     public async Task ReadExcelAsync<T>(
-        IFormFile file,
+        string filePath,
         int batchSize,
         Func<List<T>, int, Task> batchHandler,
         Action<ImportError> errorHandler,
@@ -12,10 +13,10 @@ public class ExcelReaderService
         CancellationToken cancellationToken
     ) where T : new()
     {
-        System.Text.Encoding.RegisterProvider(
-            System.Text.CodePagesEncodingProvider.Instance);
+        Encoding.RegisterProvider(
+            CodePagesEncodingProvider.Instance);
 
-        using var stream = file.OpenReadStream();
+        using var stream = File.OpenRead(filePath);
         using var reader = ExcelReaderFactory.CreateReader(stream);
 
         var properties = typeof(T).GetProperties();
@@ -24,93 +25,98 @@ public class ExcelReaderService
         int rowNumber = 0;
         bool isHeader = true;
 
-        while (reader.Read())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            rowNumber++;
-
-            if (isHeader)
+        do
+        {   
+            while (reader.Read())
             {
-                isHeader = false;
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            try
-            {
-                var obj = new T();
+                rowNumber++;
 
-                for (int i = 0; i < properties.Length; i++)
+                if (isHeader)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var value = reader.GetValue(i);
-
-                    if (value == null) continue;
-
-                    var property = properties[i];
-
-                    var converted = Convert.ChangeType(
-                        value,
-                        Nullable.GetUnderlyingType(property.PropertyType)
-                        ?? property.PropertyType
-                    );
-
-                    property.SetValue(obj, converted);
+                    isHeader = false;
+                    continue;
                 }
 
-                buffer.Add(obj);
-
-                if (buffer.Count >= batchSize)
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    var obj = new T();
 
-                    await batchHandler(buffer,rowNumber);
+                    for (int i = 0; i < properties.Length; i++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    buffer.Clear();
+                        var value = reader.GetValue(i);
+
+                        if (value == null) continue;
+
+                        var property = properties[i];
+
+                        var converted = Convert.ChangeType(
+                            value,
+                            Nullable.GetUnderlyingType(property.PropertyType)
+                            ?? property.PropertyType
+                        );
+
+                        property.SetValue(obj, converted);
+                    }
+
+                    buffer.Add(obj);
+
+                    if (buffer.Count >= batchSize)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        await batchHandler(buffer, rowNumber);
+
+                        buffer.Clear();
+                        progressHandler?.Invoke(new ImportProgress
+                        {
+                            ProcessedRows = rowNumber,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorHandler?.Invoke(new ImportError
+                    {
+                        RowNumber = rowNumber,
+                        Message = ex.Message
+                    });
                 }
             }
-            catch (Exception ex)
-            {
-                errorHandler?.Invoke(new ImportError
-                {
-                    RowNumber = rowNumber,
-                    Message = ex.Message
-                });
-            }
-
-            progressHandler?.Invoke(new ImportProgress
-            {
-                ProcessedRows = rowNumber
-            });
         }
+        while (reader.NextResult());
 
         if (buffer.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            await batchHandler(buffer,rowNumber);
+            await batchHandler(buffer, rowNumber);
+            progressHandler?.Invoke(new ImportProgress
+            {
+                ProcessedRows = rowNumber,
+            });
         }
     }
 
-    public int GetTotalRows(IFormFile file)
+    public async Task<int> GetTotalRows(string filePath)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         int totalRows = 0;
 
-        using (var stream = file.OpenReadStream())
-        using (var reader = ExcelReaderFactory.CreateReader(stream))
+        using var stream = File.OpenRead(filePath);
+        using var reader = ExcelReaderFactory.CreateReader(stream);
+        do
         {
-            do
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    totalRows++;
-                }
+                totalRows++;
             }
-            while (reader.NextResult()); // next sheet
         }
+        while (reader.NextResult());
 
         return totalRows;
     }
