@@ -51,12 +51,12 @@ namespace POS.Services.Import
         }
 
         public async Task<bool> ImportPurchaseDataAsync(string filepath)
-        {             
+        {
             _importInfo.ImportType = ImportType.Purchase;
             _importInfo.FileName = Path.GetFileName(filepath);
-            _importInfo.TotalRecords =  await _excelReaderService.GetTotalRows(filepath);
-            
-            await CreateImportInfoAsync(_importInfo);   
+            _importInfo.TotalRecords = await _excelReaderService.GetTotalRows(filepath);
+
+            await CreateImportInfoAsync(_importInfo);
 
             try
             {
@@ -71,7 +71,7 @@ namespace POS.Services.Import
                     HandleBatchProgress,
                     _cancellationTokenSource.Token
                 );
-                
+
                 if (_validationErrors.Count != 0 || _errorList.Count != 0)
                 {
                     _logger.LogInformation($"Import completed with {_validationErrors.Count} records having validation errors.");
@@ -159,13 +159,13 @@ namespace POS.Services.Import
                         IMEI2 = rowData.IMEI2
                     };
 
-                    var recordValidationErrors = _dataProcessor.ValidateData(tempRecord,rowCount);
+                    var recordValidationErrors = _dataProcessor.ValidateData(tempRecord, rowCount);
                     if (recordValidationErrors.Count == 0)
                     {
                         tempRecords.Add(tempRecord);
                         continue;
                     }
-                    
+
                     _validationErrors[tempRecord.Id] = recordValidationErrors;
                     if (_validationErrors.Count > BatchSizeErrors)
                     {
@@ -223,7 +223,7 @@ namespace POS.Services.Import
 
         private async Task<bool> ProcessDataWithValidationAndTransaction(int importId)
         {
-            
+
             // Use transaction only for the final processing and saving
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -263,6 +263,7 @@ namespace POS.Services.Import
                             await transaction.RollbackAsync();
                             return false;
                         }
+                        _logger.LogInformation($"Batch {i + 1}: Added {suppliers.Count} suppliers.");
                     }
 
                     var products = processedRecords
@@ -271,7 +272,7 @@ namespace POS.Services.Import
                         .Select(p => p!)
                         .Distinct() //by reference
                         .ToList();
-                        
+
                     //save product
                     if (products.Count != 0)
                     {
@@ -283,6 +284,7 @@ namespace POS.Services.Import
                             await transaction.RollbackAsync();
                             return false;
                         }
+                        _logger.LogInformation($"Batch {i + 1}: Added {products.Count} products.");
                     }
 
                     var invoices = processedRecords.Select(p => p.Purchase)
@@ -291,29 +293,31 @@ namespace POS.Services.Import
                         .Distinct() //by reference
                         .ToList();
 
-
-                    invoices.ForEach(inv =>
+                    if (invoices.Count != 0)
                     {
-                        inv.SupplierId = inv.Supplier != null ? inv.Supplier.Id : inv.SupplierId;
-                    });
-                    
 
-                    var savedInvoices = await _purchaseService.AddPurchaseBulkAsync(invoices);
+                        invoices.ForEach(inv =>
+                        {
+                            inv.SupplierId = inv.Supplier != null ? inv.Supplier.Id : inv.SupplierId;
+                        });
 
-                    if (!savedInvoices)
-                    {
-                        // Processing failed - rollback transaction
-                        _logger.LogError($"Batch {i + 1}: Failed to add invoices. Rolling back transaction.");
-                        await transaction.RollbackAsync();
-                        return false;
+                        var savedInvoices = await _purchaseService.AddPurchaseBulkAsync(invoices);
+                        if (!savedInvoices)
+                        {
+                            // Processing failed - rollback transaction
+                            _logger.LogError($"Batch {i + 1}: Failed to add invoices. Rolling back transaction.");
+                            await transaction.RollbackAsync();
+                            return false;
+                        }
+                        _logger.LogInformation($"Batch {i + 1}: Added {invoices.Count} invoices.");
                     }
-                        
+
                     processedRecords.ForEach(r =>
                     {
                         r.PurchaseId = r.Purchase != null ? r.Purchase.Id : r.PurchaseId;
                         r.ProductId = r.Product != null ? r.Product.Id : r.ProductId;
                     });
-                    
+
 
                     //save purchase 
                     var saveResult = await _batchService.BulkAddBatchesAsync(processedRecords);
@@ -324,10 +328,12 @@ namespace POS.Services.Import
                         await transaction.RollbackAsync();
                         return false;
                     }
+                    _logger.LogInformation($"Batch {i + 1}: Saved {processedRecords.Count} purchases.");
 
                     // Update temp records status to Processed
                     batchRecords.ForEach(r => r.Status = ImportStatus.Completed);
                     await _context.BulkUpdateAsync(batchRecords);
+                    _logger.LogInformation($"Batch {i + 1}: Updated temp records status to Completed.");
 
                 }
 
