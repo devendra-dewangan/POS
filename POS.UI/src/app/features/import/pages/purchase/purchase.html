@@ -1,0 +1,25 @@
+<button type="button">Get Purchase Template</button>
+
+
+<form #purchaseForm="ngForm" (ngSubmit)="submitPurchase(purchaseForm)">
+  <div>
+    <label for="inputFile">Upload Purchase File:</label>
+    <input 
+    type="file" 
+    id="inputFile" 
+    name="inputFile"  
+    accept=".xlsx,.xls,.csv" 
+    (change)="onFileSelected($event)"
+    ngModel required>
+  </div>
+  <button type="submit" [disabled]="!purchaseForm.valid">Import</button>
+</form>
+
+<form #uploadStatusForm="ngForm" (ngSubmit)="submitUploadStatus(uploadStatusForm)">
+  <div>
+    <label for="statusFile">Import Status File ID:</label>
+    <input type="text" id="statusFile" name="statusFile" ngModel required>
+  </div>
+  <button type="submit" [disabled]="!uploadStatusForm.valid">Import Status</button>
+</form>
+
