@@ -55,9 +55,6 @@ logs/
 # !Migrations/*.cs
 # !Migrations/*.Designer.cs
 
-# Exclude migration snapshots if they contain sensitive information
-POS/Migrations/*.Designer.cs
-
 # Exclude any backup migration files
 *_backup.cs
 *_old.cs

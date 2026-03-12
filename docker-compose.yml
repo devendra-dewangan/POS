@@ -7,11 +7,13 @@ services:
     container_name: pos-migrate
     command: ["dotnet", "POS.dll", "migrate"]
     volumes:
-      - pos-db:/app/data
+      - ./pos-db:/app/data
       - ./logs:/app/logs
     networks:
       - app-net
     restart: "no"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
 
   pos-app:
     image: reg-devdew.chub-beta.ts.net/pos-app:latest
@@ -23,7 +25,7 @@ services:
       - "5000:80"
     restart: unless-stopped
     volumes:
-      - pos-db:/app/data
+      - ./pos-db:/app/data
       - ./logs:/app/logs
     networks:
       - app-net
@@ -34,7 +36,3 @@ networks:
   app-net:
     name: app-net
     driver: bridge
-
-volumes:
-  pos-db:
-    name: pos-db
