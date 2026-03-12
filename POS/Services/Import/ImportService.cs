@@ -61,8 +61,13 @@ namespace POS.Services.Import
             try
             {
                 await _excelReaderService.ReadExcelAsync<PurchaseExcelRow>(
-                    filepath,
-                    BatchSize,
+                    new ImportFileInfo
+                    {
+                        FilePath = filepath,
+                        BatchSize =  BatchSize,
+                        TotalRows = _importInfo.TotalRecords,
+                        DatetimeFormat = "dd-MM-yyyy HH:mm:ss"
+                    },
                     // batch handler
                     ProcessBatch,
                     // error handler

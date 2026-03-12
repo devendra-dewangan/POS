@@ -1,12 +1,12 @@
+using System.Globalization;
 using System.Text;
 using ExcelDataReader;
-using ExcelDataReader.Log;
+using POS.Models;
 
 public class ExcelReaderService
 {
     public async Task ReadExcelAsync<T>(
-        string filePath,
-        int batchSize,
+        ImportFileInfo fileInfo,
         Func<List<T>, int, Task> batchHandler,
         Action<ImportError> errorHandler,
         Action<ImportProgress> progressHandler,
@@ -16,11 +16,10 @@ public class ExcelReaderService
         Encoding.RegisterProvider(
             CodePagesEncodingProvider.Instance);
 
-        using var stream = File.OpenRead(filePath);
+        using var stream = File.OpenRead(fileInfo.FilePath);
         using var reader = ExcelReaderFactory.CreateReader(stream);
-
         var properties = typeof(T).GetProperties();
-        var buffer = new List<T>(batchSize);
+        var buffer = new List<T>(fileInfo.BatchSize);
 
         int rowNumber = 0;
         bool isHeader = true;
@@ -52,19 +51,33 @@ public class ExcelReaderService
                         if (value == null) continue;
 
                         var property = properties[i];
+                        var targetType = Nullable.GetUnderlyingType(property.PropertyType) 
+                                        ?? property.PropertyType;
 
-                        var converted = Convert.ChangeType(
-                            value,
-                            Nullable.GetUnderlyingType(property.PropertyType)
-                            ?? property.PropertyType
-                        );
+                        object converted;
+
+                        if (targetType == typeof(DateTime))
+                        {
+                            converted = DateTime.ParseExact(
+                                value.ToString(),
+                                fileInfo.DatetimeFormat,
+                                CultureInfo.InvariantCulture
+                            );
+                        }
+                        else
+                        {
+                           converted = Convert.ChangeType(
+                                value,
+                                targetType
+                            );
+                        }
 
                         property.SetValue(obj, converted);
                     }
 
                     buffer.Add(obj);
 
-                    if (buffer.Count >= batchSize)
+                    if (buffer.Count >= fileInfo.BatchSize)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
@@ -97,6 +110,7 @@ public class ExcelReaderService
             progressHandler?.Invoke(new ImportProgress
             {
                 ProcessedRows = rowNumber,
+                TotalRows = fileInfo.TotalRows
             });
         }
     }
@@ -132,4 +146,12 @@ public class ImportProgress
 {
     public int ProcessedRows { get; set; }
     public int TotalRows { get; set; }
+}
+
+public class ImportFileInfo
+{
+    public string FilePath { get; set; } = string.Empty;
+    public int TotalRows { get; set; }
+    public string DatetimeFormat {get; set;} = "dd-MM-yyyy HH:mm:ss";
+    public int BatchSize { get; set; } = 1000;
 }
