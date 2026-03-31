@@ -41,19 +41,18 @@ namespace POS.Controllers
             try
             {
                 var file = Request.Form.Files.FirstOrDefault();
-                var uploads = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-                Directory.CreateDirectory(uploads);
-
-                var filePath = Path.Combine(uploads, Guid.NewGuid() + Path.GetExtension(file?.FileName));
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-                
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest("No file uploaded.");
+                }
+
+                var uploads = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+                Directory.CreateDirectory(uploads);
+                var filePath = Path.Combine(uploads, Guid.NewGuid() + Path.GetExtension(file.FileName));
+                
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
                 }
 
                 // Start import process asynchronously

@@ -56,7 +56,7 @@ namespace POS.Services
 
         public async Task<IEnumerable<Supplier>> GetAllSuppliersAsync()
         {
-            return await _unitOfWork.Suppliers.GetAllAsync();
+            return await _unitOfWork.Suppliers.GetAllAsync()?? [];
         }
 
         public async Task<IEnumerable<Supplier>> GetSuppliersByNamesAsync(List<string> supplierNames)

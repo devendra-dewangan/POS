@@ -100,12 +100,12 @@ namespace POS.Services
 
         public async Task<IEnumerable<Product>> GetAllProductsAsync()
         {
-            return await _unitOfWork.Products.GetAllAsync();
+            return await _unitOfWork.Products.GetAllAsync() ?? [];
         }
 
         public async Task<IEnumerable<Product>> GetProductsByBarcodesAsync(List<string> barcodes)
         {
-            return await _unitOfWork.Products.GetProductsByBarcodesAsync(barcodes);
+            return await _unitOfWork.Products.GetProductsByBarcodesAsync(barcodes) ?? [];
         }
 
         public async Task<bool> BulkAddProductsAsync(List<Product> products)

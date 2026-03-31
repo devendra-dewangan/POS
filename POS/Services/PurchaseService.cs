@@ -33,7 +33,7 @@ namespace POS.Services
 
         public async Task<IEnumerable<Purchase>> GetAllPurchasesAsync()
         {
-            return await _unitOfWork.Purchases.GetAllAsync();
+            return await _unitOfWork.Purchases.GetAllAsync() ?? [];
         }
 
         public async Task<bool> AddPurchaseBulkAsync(IEnumerable<Purchase> purchases)
@@ -59,7 +59,7 @@ namespace POS.Services
 
         public async Task<IEnumerable<Purchase>> GetPurchasesByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers)
         {
-            return await _unitOfWork.Purchases.GetByInvoiceNumbersAsync(invoiceNumbers);
+            return await _unitOfWork.Purchases.GetByInvoiceNumbersAsync(invoiceNumbers) ?? [];
         }
     }
 }
