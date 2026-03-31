@@ -1,23 +1,19 @@
 using POS.Data;
 using POS.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+
 using Microsoft.EntityFrameworkCore;
 using EFCore.BulkExtensions;
+using POS.Repos;
 
 namespace POS.Services
 {
     public class ProductService : IProductService
     {
-        private readonly AppDbContext _context;
-        private readonly IBatchService _batchService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ProductService(AppDbContext context, IBatchService batchService)
+        public ProductService(IUnitOfWork uow)
         {
-            _context = context;
-            _batchService = batchService;
+            _unitOfWork = uow;
         }
 
         public async Task<Product> AddProductAsync(string productName, string productCode, string barcode)
@@ -29,8 +25,8 @@ namespace POS.Services
                 Barcode = barcode
             };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Products.AddAsync(product);
+            await _unitOfWork.CommitAsync();
 
             // Create an empty batch for the product
             // Since we need a purchaseId but want supplier as null, we'll create a batch with minimal data
@@ -53,8 +49,8 @@ namespace POS.Services
                     SaleRate = 0 // Initial sale rate is 0
                 };
 
-                _context.Batches.Add(batch);
-                await _context.SaveChangesAsync();
+                await _unitOfWork.Batches.AddAsync(batch);
+                await _unitOfWork.CommitAsync();
             }
             catch (Exception)
             {
@@ -69,8 +65,7 @@ namespace POS.Services
         public async Task<Product> GetOrCreateProductAsync(string productName, string productCode = "", string barcode = "")
         {
             // Try to find existing product by name
-            var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.ProductName.ToLower() == productName.ToLower());
+            var product = await GetProductByNameAsync(productName);
 
             if (product != null)
             {
@@ -85,39 +80,32 @@ namespace POS.Services
                 Barcode = barcode
             };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Products.AddAsync(product);
+            await _unitOfWork.CommitAsync();
             return product;
         }
 
         public async Task<Product?> GetProductByNameAsync(string productName)
         {
-            return await _context.Products
-                .FirstOrDefaultAsync(p => p.ProductName.ToLower() == productName.ToLower());
+            var products = await _unitOfWork.Products
+                .GetByNameAsync(productName);
+
+            return products?.FirstOrDefault();
         }
 
         public async Task<Product?> GetProductByBarcodeAsync(string barcode)
         {
-            if (string.IsNullOrEmpty(barcode))
-                return null;
-
-            return await _context.Products
-                .FirstOrDefaultAsync(p => p.Barcode.ToLower() == barcode.ToLower());
+            return await _unitOfWork.Products.GetByBarcodeAsync(barcode);
         }
 
         public async Task<IEnumerable<Product>> GetAllProductsAsync()
         {
-            return await _context.Products.ToListAsync();
+            return await _unitOfWork.Products.GetAllAsync();
         }
 
         public async Task<IEnumerable<Product>> GetProductsByBarcodesAsync(List<string> barcodes)
         {
-            if (barcodes == null || barcodes.Count == 0)
-                return [];
-
-            return await _context.Products
-                .Where(p => barcodes.Contains(p.Barcode))
-                .ToListAsync();
+            return await _unitOfWork.Products.GetProductsByBarcodesAsync(barcodes);
         }
 
         public async Task<bool> BulkAddProductsAsync(List<Product> products)
@@ -126,11 +114,12 @@ namespace POS.Services
             {
                 if (products == null || products.Count == 0)
                     return false;
-                await _context.BulkInsertAsync(products,new BulkConfig
-                {
-                    PreserveInsertOrder = true,
-                    SetOutputIdentity = true
-                });
+                // await _unitOfWork.Suppliers.AddBulkAsync(products,new BulkConfig
+                // {
+                //     PreserveInsertOrder = true,
+                //     SetOutputIdentity = true
+                // });
+                await _unitOfWork.Products.AddBulkAsync(products);
                 return true;
             }
             catch (Exception ex)

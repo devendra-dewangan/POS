@@ -8,6 +8,8 @@ namespace POS.Services
         Task<IEnumerable<Batch>> GetBatchesByPurchaseAsync(int purchaseId);
         Task<IEnumerable<Batch>> GetAllBatchesAsync();
 
+        Task<bool> SaleFromBatchAsync(int batchId, decimal quantity);
+
         Task<bool>BulkAddBatchesAsync(List<Batch> batches);
     }
 }

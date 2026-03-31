@@ -60,5 +60,19 @@ namespace POS.Services
                 return false;
             }
         }
+
+        public async Task<bool> SaleFromBatchAsync(int batchId, decimal quantity)
+        {
+            var batch = await _context.Batches.FindAsync(batchId);
+            if (batch == null || batch.Stock < quantity)
+            {
+                return false; // Not enough stock or batch not found
+            }
+
+            batch.Stock -= quantity;
+            _context.Batches.Update(batch);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

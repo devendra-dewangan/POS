@@ -2,17 +2,18 @@ using POS.Data;
 using POS.Models;
 using Microsoft.EntityFrameworkCore;
 using EFCore.BulkExtensions;
+using POS.Repos;
 
 namespace POS.Services
 {
     public class SupplierService : ISupplierService
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<SupplierService> _logger;
 
-        public SupplierService(AppDbContext context, ILogger<SupplierService> logger)
+        public SupplierService(IUnitOfWork uow, ILogger<SupplierService> logger)
         {
-            _context = context;
+            _unitOfWork = uow;
             _logger = logger;
         }
 
@@ -23,16 +24,15 @@ namespace POS.Services
                 Name = supplierName
             };
 
-            _context.Suppliers.Add(supplier);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Suppliers.AddAsync(supplier);
+            await _unitOfWork.CommitAsync();
             return supplier;
         }
 
         public async Task<Supplier> GetOrCreateSupplierAsync(string supplierName)
         {
             // Try to find existing supplier by name
-            var supplier = await _context.Suppliers
-                .FirstOrDefaultAsync(s => s.Name.ToLower() == supplierName.ToLower());
+            var supplier = await GetSupplierByNameAsync(supplierName);
 
             if (supplier != null)
             {
@@ -45,30 +45,26 @@ namespace POS.Services
                 Name = supplierName
             };
 
-            _context.Suppliers.Add(supplier);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Suppliers.AddAsync(supplier);
+            await _unitOfWork.CommitAsync();
             return supplier;
         }
 
         public async Task<Supplier?> GetSupplierByNameAsync(string supplierName)
         {
-            return await _context.Suppliers
-                .FirstOrDefaultAsync(s => s.Name.ToLower() == supplierName.ToLower());
+            var supplier = await _unitOfWork.Suppliers.GetByNameAsync(supplierName);
+
+            return supplier?.FirstOrDefault();
         }
 
         public async Task<IEnumerable<Supplier>> GetAllSuppliersAsync()
         {
-            return await _context.Suppliers.ToListAsync();
+            return await _unitOfWork.Suppliers.GetAllAsync();
         }
 
         public async Task<IEnumerable<Supplier>> GetSuppliersByNamesAsync(List<string> supplierNames)
         {
-            if (supplierNames == null || supplierNames.Count == 0)
-                return [];
-
-            return await _context.Suppliers
-                .Where(s => supplierNames.Contains(s.Name))
-                .ToListAsync();
+            return await _unitOfWork.Suppliers.GetByNamesAsync(supplierNames);
         }
 
         public async Task<bool> BulkAddSuppliersAsync(List<Supplier> suppliers)
@@ -78,11 +74,16 @@ namespace POS.Services
                 if (suppliers == null || suppliers.Count == 0)
                     return false;
 
-                await _context.BulkInsertAsync(suppliers, new BulkConfig
-                {
-                    PreserveInsertOrder = true,
-                    SetOutputIdentity = true
-                });
+                
+                await _unitOfWork.Suppliers.AddBulkAsync(suppliers);
+
+                // await _context.BulkInsertAsync(suppliers, new BulkConfig
+                // {
+                //     PreserveInsertOrder = true,
+                //     SetOutputIdentity = true
+                // });
+
+                await _unitOfWork.CommitAsync();
                 return true;
             }
             catch (Exception ex)
