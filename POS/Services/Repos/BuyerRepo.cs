@@ -33,6 +33,11 @@ namespace POS.Repos
             return await _context.Buyers.ToListAsync();
         }
 
+        public async Task<IEnumerable<Buyer>?> GetByNameAsync(string name)
+        {
+            return await _context.Buyers.Where(x=>x.Name.Contains(name)).ToListAsync();
+        }
+
         public Task<Buyer?> GetByIDAsync(int id)
         {
             return _context.Buyers.FirstOrDefaultAsync(x=>x.Id == id);

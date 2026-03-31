@@ -6,6 +6,6 @@ namespace POS.Repos
     {
         Task<Product?> GetByBarcodeAsync(string barcode);
         Task<IEnumerable<Product>?> GetByNameAsync(string name);
-        Task<IEnumerable<Product>?> GetProductsByBarcodesAsync(IEnumerable<string> barcodes)
+        Task<IEnumerable<Product>?> GetProductsByBarcodesAsync(IEnumerable<string> barcodes);
     }
 }

@@ -38,6 +38,23 @@ namespace POS.Repos
             return await _context.Purchases.FirstOrDefaultAsync(x=> x.Id == id);
         }
 
+        public async Task<IEnumerable<Purchase>?> GetByInvoiceNumberAsync(string invoiceNumber)
+        {
+            return await _context.Purchases
+                .Where(p => p.InvoiceNumber.Contains(invoiceNumber))
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Purchase>?> GetByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers)
+        {
+            if (invoiceNumbers == null || invoiceNumbers.Any() == false)
+                return [];
+
+            return await _context.Purchases
+                .Where(p => invoiceNumbers.Contains(p.InvoiceNumber))
+                .ToListAsync();
+        }
+
         public Task UpdateAsync(Purchase value)
         {
             return Task.Run(()=>true);

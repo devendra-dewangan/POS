@@ -1,16 +1,13 @@
-using POS.Data;
 using POS.Models;
-using Microsoft.EntityFrameworkCore;
-using EFCore.BulkExtensions;
+using POS.Repos;
 namespace POS.Services
 {
     public class PurchaseService : IPurchaseService
     {
-        private readonly AppDbContext _context;
-
-        public PurchaseService(AppDbContext context)
+        private IUnitOfWork _unitOfWork;
+        public PurchaseService(IUnitOfWork uow)
         {
-            _context = context;
+            _unitOfWork = uow;
         }
 
         public async Task<Purchase> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate)
@@ -22,31 +19,34 @@ namespace POS.Services
                 PurchaseDate = purchaseDate
             };
 
-            _context.Purchases.Add(purchase);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Purchases.AddAsync(purchase);
+            await _unitOfWork.CommitAsync();
             return purchase;
         }
 
         public async Task<Purchase?> GetPurchaseByInvoiceAsync(string invoiceNumber)
         {
-            return await _context.Purchases
-                .FirstOrDefaultAsync(p => p.InvoiceNumber.ToLower() == invoiceNumber.ToLower());
+            var purchases = await _unitOfWork.Purchases.GetByInvoiceNumberAsync(invoiceNumber);
+
+            return purchases?.FirstOrDefault();
         }
 
         public async Task<IEnumerable<Purchase>> GetAllPurchasesAsync()
         {
-            return await _context.Purchases.ToListAsync();
+            return await _unitOfWork.Purchases.GetAllAsync();
         }
 
         public async Task<bool> AddPurchaseBulkAsync(IEnumerable<Purchase> purchases)
         {
             try
             {
-                await _context.BulkInsertAsync(purchases, new BulkConfig
-                {
-                    PreserveInsertOrder = true,
-                    SetOutputIdentity = true
-                });
+                await _unitOfWork.Purchases.AddBulkAsync(purchases);
+                await _unitOfWork.CommitAsync();
+                // await _context.BulkInsertAsync(purchases, new BulkConfig
+                // {
+                //     PreserveInsertOrder = true,
+                //     SetOutputIdentity = true
+                // });
                 return true;
             }
             catch (Exception ex)
@@ -59,12 +59,7 @@ namespace POS.Services
 
         public async Task<IEnumerable<Purchase>> GetPurchasesByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers)
         {
-            if (invoiceNumbers == null || invoiceNumbers.Any() == false)
-                return [];
-
-            return await _context.Purchases
-                .Where(p => invoiceNumbers.Contains(p.InvoiceNumber))
-                .ToListAsync();
+            return await _unitOfWork.Purchases.GetByInvoiceNumbersAsync(invoiceNumbers);
         }
     }
 }

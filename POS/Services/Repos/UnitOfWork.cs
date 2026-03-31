@@ -22,6 +22,9 @@ namespace POS.Repos
         private ISupplierRepo? _suppliers;
         public ISupplierRepo Suppliers => _suppliers ??= new SupplierRepo(context);
 
+        private IPurchaseRepo? _purchases;
+        public IPurchaseRepo Purchases => _purchases ??= new PurchaseRepo(context);
+
         public async Task<int> CommitAsync(CancellationToken cancellationToken = default)
         {
             return await context.SaveChangesAsync(cancellationToken);

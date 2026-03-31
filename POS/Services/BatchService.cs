@@ -1,17 +1,15 @@
-using POS.Data;
 using POS.Models;
-using Microsoft.EntityFrameworkCore;
-using EFCore.BulkExtensions;
+using POS.Repos;
 
 namespace POS.Services
 {
     public class BatchService : IBatchService
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _unitOFWork;
 
-        public BatchService(AppDbContext context)
+        public BatchService(IUnitOfWork uow)
         {
-            _context = context;
+            _unitOFWork = uow;
         }
 
         public async Task<Batch> AddBatchAsync(int purchaseId, decimal stock, decimal purchaseStock, decimal purchaseRate, decimal mrp)
@@ -25,32 +23,32 @@ namespace POS.Services
                 MRP = mrp
             };
 
-            _context.Batches.Add(batch);
-            await _context.SaveChangesAsync();
+            await _unitOFWork.Batches.AddAsync(batch);
+            await _unitOFWork.CommitAsync();
             return batch;
         }
 
         public async Task<IEnumerable<Batch>> GetBatchesByPurchaseAsync(int purchaseId)
         {
-            return await _context.Batches
-                .Where(b => b.PurchaseId == purchaseId)
-                .ToListAsync();
+            return await _unitOFWork.Batches.GetByPurchaseIdAsync(purchaseId)??[];
         }
 
         public async Task<IEnumerable<Batch>> GetAllBatchesAsync()
         {
-            return await _context.Batches.ToListAsync();
+            return await _unitOFWork.Batches.GetAllAsync() ?? [];
         }
 
         public async Task<bool> BulkAddBatchesAsync(List<Batch> batches)
         {
             try
             {
-                await _context.BulkInsertAsync(batches,new BulkConfig
-                {
-                    PreserveInsertOrder = true,
-                    SetOutputIdentity = true
-                });
+                await _unitOFWork.Batches.AddBulkAsync(batches);
+                await _unitOFWork.CommitAsync();
+                // await _context.BulkInsertAsync(batches,new BulkConfig
+                // {
+                //     PreserveInsertOrder = true,
+                //     SetOutputIdentity = true
+                // });
                 return true;
             }
             catch (Exception ex)
@@ -63,15 +61,15 @@ namespace POS.Services
 
         public async Task<bool> SaleFromBatchAsync(int batchId, decimal quantity)
         {
-            var batch = await _context.Batches.FindAsync(batchId);
-            if (batch == null || batch.Stock < quantity)
-            {
-                return false; // Not enough stock or batch not found
-            }
+            // var batch = await _context.Batches.FindAsync(batchId);
+            // if (batch == null || batch.Stock < quantity)
+            // {
+            //     return false; // Not enough stock or batch not found
+            // }
 
-            batch.Stock -= quantity;
-            _context.Batches.Update(batch);
-            await _context.SaveChangesAsync();
+            // batch.Stock -= quantity;
+            // _context.Batches.Update(batch);
+            // await _context.SaveChangesAsync();
             return true;
         }
     }

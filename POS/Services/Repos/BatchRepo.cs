@@ -38,6 +38,13 @@ namespace POS.Repos
             return _context.Batches.FirstOrDefaultAsync(x=>x.Id == id);
         }
 
+        public async Task<IEnumerable<Batch>?> GetByPurchaseIdAsync(int purchaseId)
+        {
+            return await _context.Batches
+                .Where(b => b.PurchaseId == purchaseId)
+                .ToListAsync();
+        }
+
         public Task UpdateAsync(Batch value)
         {
            return Task.Run(()=>true);

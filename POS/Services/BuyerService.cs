@@ -1,16 +1,14 @@
-using POS.Data;
 using POS.Models;
-using Microsoft.EntityFrameworkCore;
-
+using POS.Repos;
 namespace POS.Services
 {
     public class BuyerService : IBuyerService
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public BuyerService(AppDbContext context)
+        public BuyerService(IUnitOfWork uow)
         {
-            _context = context;
+            _unitOfWork = uow;
         }
 
         public async Task<Buyer> AddBuyerAsync(string name)
@@ -20,42 +18,21 @@ namespace POS.Services
                 Name = name
             };
 
-            _context.Buyers.Add(buyer);
-            await _context.SaveChangesAsync();
-            return buyer;
-        }
-
-        public async Task<Buyer> GetOrCreateBuyerAsync(string name)
-        {
-            // Try to find existing buyer by name
-            var buyer = await _context.Buyers
-                .FirstOrDefaultAsync(b => b.Name.ToLower() == name.ToLower());
-
-            if (buyer != null)
-            {
-                return buyer;
-            }
-
-            // Create new buyer
-            buyer = new Buyer
-            {
-                Name = name
-            };
-
-            _context.Buyers.Add(buyer);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Buyers.AddAsync(buyer);
+            await _unitOfWork.CommitAsync();
             return buyer;
         }
 
         public async Task<Buyer?> GetBuyerByNameAsync(string name)
         {
-            return await _context.Buyers
-                .FirstOrDefaultAsync(b => b.Name.ToLower() == name.ToLower());
+            var buyers = await _unitOfWork.Buyers.GetByNameAsync(name);
+
+            return buyers?.FirstOrDefault();
         }
 
         public async Task<IEnumerable<Buyer>> GetAllBuyersAsync()
         {
-            return await _context.Buyers.ToListAsync();
+            return await _unitOfWork.Buyers.GetAllAsync() ?? [];
         }
     }
 }

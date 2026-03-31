@@ -4,6 +4,7 @@ namespace POS.Repos
 {
     public interface IPurchaseRepo : IRepository<Purchase>
     {
-        
+        Task<IEnumerable<Purchase>?> GetByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers);
+        Task<IEnumerable<Purchase>?> GetByInvoiceNumberAsync(string invoiceNumber);
     }
 }
