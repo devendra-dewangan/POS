@@ -59,7 +59,7 @@ public class ExcelReaderService
                         if (targetType == typeof(DateTime))
                         {
                             converted = DateTime.ParseExact(
-                                value.ToString(),
+                                value.ToString()!,
                                 fileInfo.DatetimeFormat,
                                 CultureInfo.InvariantCulture
                             );
