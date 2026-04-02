@@ -6,25 +6,31 @@ namespace POS.Services
     public class BatchService : IBatchService
     {
         private readonly IUnitOfWork _unitOFWork;
+        private readonly ILiteStore _liteStore;
 
-        public BatchService(IUnitOfWork uow)
+        public BatchService(IUnitOfWork uow, ILiteStore liteStore)
         {
             _unitOFWork = uow;
+            _liteStore = liteStore;
         }
 
-        public async Task<Batch> AddBatchAsync(int purchaseId, decimal stock, decimal purchaseStock, decimal purchaseRate, decimal mrp)
+        public async Task<Batch> AddBatchAsync(int purchaseCartId, decimal purchaseStock, decimal purchaseRate, decimal mrp, int productId)
         {
+            var purchaseCart = _liteStore.PurchaseCarts.FindById(purchaseCartId);
+            if (purchaseCart == null || purchaseCart.Status == CartStatus.Completed)
+                throw new InvalidOperationException("Invalid purchase cart.");
+
             var batch = new Batch
             {
-                PurchaseId = purchaseId,
-                Stock = stock,
+                Stock = purchaseStock,
                 PurchaseStock = purchaseStock,
                 PurchaseRate = purchaseRate,
+                ProductId = productId,
                 MRP = mrp
             };
 
-            await _unitOFWork.Batches.AddAsync(batch);
-            await _unitOFWork.CommitAsync();
+            purchaseCart.Items.Add(batch);
+            _liteStore.PurchaseCarts.Update(purchaseCart);
             return batch;
         }
 

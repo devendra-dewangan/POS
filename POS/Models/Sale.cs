@@ -19,7 +19,7 @@ namespace POS.Models
         public decimal TotalAmount { get; set; }
         
         [JsonIgnore]
-        public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
+        public ICollection<SaleItem> SaleItems { get; set; } = [];
         
         [Required]
         public DateTime SaleDate { get; set; }

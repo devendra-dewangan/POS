@@ -42,5 +42,12 @@ namespace POS.Repos
         {
            return Task.Run(()=>true);
         }
+
+        public async Task<IEnumerable<Sale>?> GetByInvoiceNumberAsync(string invoiceNumber)
+        {
+            return await _context.Sales
+                .Where(p => p.InvoiceNumber.Contains(invoiceNumber))
+                .ToListAsync();
+        }
     }
 }

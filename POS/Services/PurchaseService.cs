@@ -13,18 +13,45 @@ namespace POS.Services
             _liteStore = liteStore;
         }
 
-        public async Task<Purchase> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate)
+        public async Task<int> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate)
         {
-            
-            var purchase = new Purchase
-            {
-                SupplierId = supplierId,
-                InvoiceNumber = invoiceNumber,
-                PurchaseDate = purchaseDate
-            };
 
+            var purchase = new PurchaseCart
+            {
+                Purchase = new Purchase
+                {
+                    SupplierId = supplierId,
+                    InvoiceNumber = invoiceNumber,
+                    PurchaseDate = purchaseDate
+                }
+            };
+            _liteStore.PurchaseCarts.Upsert(purchase);
+            return purchase.Id;
+        }
+
+        public async Task<Purchase> CompletePurchaseAsync(int purchaseCartId)
+        {
+            var purchaseCart = _liteStore.PurchaseCarts.FindById(purchaseCartId);
+            if (purchaseCart == null || purchaseCart.Status == CartStatus.Completed)
+                throw new InvalidOperationException("Invalid purchase cart.");
+
+            if (purchaseCart.Items.Count == 0)
+                throw new InvalidOperationException("Purchase cart is empty.");
+
+            // Here you would typically save the purchase to the main database
+            var purchase = purchaseCart.Purchase!;
             await _unitOfWork.Purchases.AddAsync(purchase);
             await _unitOfWork.CommitAsync();
+
+            var batches = purchaseCart.Items;
+            batches.ForEach(item => item.PurchaseId = purchase.Id); // Update the cart with the saved purchase (with ID)
+            await _unitOfWork.Batches.AddBulkAsync(batches);
+            await _unitOfWork.CommitAsync();
+
+            // Update the cart status
+            purchaseCart.Status = CartStatus.Completed;
+            _liteStore.PurchaseCarts.Update(purchaseCart);
+            _liteStore.PurchaseCarts.Delete(purchaseCartId);
             return purchase;
         }
 

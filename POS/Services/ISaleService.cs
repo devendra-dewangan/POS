@@ -4,6 +4,9 @@ namespace POS.Services
 {
     public interface ISaleService
     {
-        int CompleteSale(IEnumerable<SaleItem> saleItems);
+        Task<int> AddSaleAsync(int buyerId);
+        Task<IEnumerable<Sale>?> GetSaleByInvoiceAsync(string invoiceNumber);
+        Task<IEnumerable<Sale>?> GetAllSalesAsync();
+        Task<bool> AddSaleBulkAsync(IEnumerable<Sale> sales);
     }
 }
