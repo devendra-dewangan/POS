@@ -5,13 +5,17 @@ namespace POS.Services
     public class PurchaseService : IPurchaseService
     {
         private IUnitOfWork _unitOfWork;
-        public PurchaseService(IUnitOfWork uow)
+        private ILiteStore _liteStore;
+
+        public PurchaseService(IUnitOfWork uow, ILiteStore liteStore)
         {
             _unitOfWork = uow;
+            _liteStore = liteStore;
         }
 
         public async Task<Purchase> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate)
         {
+            
             var purchase = new Purchase
             {
                 SupplierId = supplierId,

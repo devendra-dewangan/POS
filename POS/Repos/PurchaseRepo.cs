@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using POS.Data;
 using POS.Models;
-using SQLitePCL;
 
 namespace POS.Repos
 {

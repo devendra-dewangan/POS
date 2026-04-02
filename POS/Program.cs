@@ -3,7 +3,8 @@ using POS.Services.Import;
 using POS.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-
+using LiteDB;
+using POS.Repos;
 var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -42,6 +43,16 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IBuyerService, BuyerService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+
+builder.Services.AddSingleton(
+    new LiteDatabase(builder.Configuration
+    .GetSection("LiteDb:ConnectionString")
+    .Value!));
+
+builder.Services.AddScoped<LiteDbContext>();
+builder.Services.AddScoped<ILiteStore, LiteStore>();
+
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddSingleton<ImportQueue>();
 builder.Services.AddHostedService<ImportWorker>();
 
