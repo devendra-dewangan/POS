@@ -66,6 +66,27 @@ namespace POS.Services
             return await _unitOfWork.Sales.GetAllAsync();
         }
 
+        public async Task<bool> AddSaleItemAsync(int saleCartId, int batchId, decimal quantity)
+        {
+            var saleCart = _liteStore.SaleCarts.FindById(saleCartId);
+            if (saleCart == null || saleCart.Status == CartStatus.Completed)
+                throw new InvalidOperationException("Invalid sale cart.");
+
+            var batch = await _unitOfWork.Batches.GetByIDAsync(batchId) 
+                    ?? throw new InvalidOperationException("Insufficient stock in the batch.");
+
+            var saleItem = new SaleItem
+            {
+                BatchId = batchId,
+                Quantity = quantity,
+                UnitPrice = batch.SaleRate,
+            };
+
+            saleCart.Items.Add(saleItem);
+            _liteStore.SaleCarts.Update(saleCart);
+            return true;
+        }
+
         public async Task<bool> AddSaleBulkAsync(IEnumerable<Sale> sales)
         {
             try
