@@ -25,6 +25,9 @@ namespace POS.Repos
         private IPurchaseRepo? _purchases;
         public IPurchaseRepo Purchases => _purchases ??= new PurchaseRepo(context);
 
+        private IRefreshTokenRepo? _refreshTokens;
+        public IRefreshTokenRepo RefreshTokens => _refreshTokens ??= new RefreshTokenRepo(context);
+
         public async Task<int> CommitAsync(CancellationToken cancellationToken = default)
         {
             return await context.SaveChangesAsync(cancellationToken);

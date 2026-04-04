@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using POS.Models;
 
 namespace POS.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : IdentityDbContext<User>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -18,6 +19,7 @@ namespace POS.Data
         public DbSet<Buyer> Buyers { get; set; }
         public DbSet<ImportInfo> ImportInfos { get; set; }
         public DbSet<ImportPurchaseTemp> ImportPurchaseTemp { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -124,6 +126,21 @@ namespace POS.Data
                       .WithMany(i => i.ImportPurchaseTemps)
                       .HasForeignKey(e => e.ImportId)
                       .OnDelete(DeleteBehavior.Cascade); // Cascade delete when ImportInfo is deleted
+            });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.User)
+                      .WithMany(u => u.RefreshTokens)
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(e => e.TokenHash).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Expires).IsRequired();
+                entity.Property(e => e.Created).IsRequired();
+                entity.Property(e => e.CreatedByIp).IsRequired().HasMaxLength(45);
+                entity.Property(e => e.Revoked).IsRequired(false);
+                entity.Property(e => e.RevokedByIp).IsRequired(false).HasMaxLength(45);
             });
 
             base.OnModelCreating(modelBuilder);

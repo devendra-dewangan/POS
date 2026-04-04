@@ -6,14 +6,23 @@ using Serilog;
 using LiteDB;
 using POS.Repos;
 using POS.Middleware;
+using Microsoft.AspNetCore.Identity;
+using POS.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 builder.Host.UseSerilog();
 
-builder.Services.AddControllers();
+
+builder.Services.AddSingleton(
+    new LiteDatabase(builder.Configuration
+    .GetSection("LiteDb:ConnectionString")
+    .Value!));
 
 // Add SQLite database context
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -21,10 +30,28 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
 
-builder.Services.AddSingleton(
-    new LiteDatabase(builder.Configuration
-    .GetSection("LiteDb:ConnectionString")
-    .Value!));
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = "JwtBearer";
+    options.DefaultChallengeScheme = "JwtBearer";
+})
+.AddJwtBearer("JwtBearer", options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes("THIS_IS_SECRET_KEY"))
+    };
+});
+
 
 builder.Services.AddCors(options =>
 {
@@ -37,6 +64,7 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddControllers();
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
 

@@ -9,6 +9,7 @@ namespace POS.Repos
         IBuyerRepo Buyers {get;}
         ISupplierRepo Suppliers {get;}
         IPurchaseRepo Purchases {get;}
+        IRefreshTokenRepo RefreshTokens { get; }
 
         Task<int> CommitAsync(CancellationToken cancellationToke = default);
     }
