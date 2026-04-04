@@ -4,13 +4,13 @@ using POS.Repos;
 
 namespace POS.Services
 {
-    public class IdentifyService : IIdentityService
+    public class IdentityService : IIdentityService
     {
         private readonly UserManager<User> _userManager;
         private readonly ITokenService _tokenService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public IdentifyService(UserManager<User> userManager, IUnitOfWork unitOfWork)
+        public IdentityService(UserManager<User> userManager, IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
             _tokenService = new TokenService();

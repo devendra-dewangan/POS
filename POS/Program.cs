@@ -48,7 +48,7 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes("THIS_IS_SECRET_KEY"))
+            Encoding.UTF8.GetBytes("THIS_IS_SUPER_SECRET_KEY_1234567890"))
     };
 });
 
@@ -81,6 +81,7 @@ builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IBuyerService, BuyerService>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IIdentityService, IdentityService>();
 
 builder.Services.AddScoped<LiteDbContext>();
 builder.Services.AddScoped<ILiteStore, LiteStore>();

@@ -23,7 +23,7 @@ namespace POS.Services
             }
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes("SUPER_SECRET_KEY_123"));
+                Encoding.UTF8.GetBytes("THIS_IS_SUPER_SECRET_KEY_1234567890"));
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
