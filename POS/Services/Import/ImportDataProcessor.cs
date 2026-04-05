@@ -105,6 +105,8 @@ namespace POS.Services
                         }
                     ],
                 });
+                
+                product.TotalStock += record.Quantity; 
             }
 
             return [.. purchaseCache.Values];
