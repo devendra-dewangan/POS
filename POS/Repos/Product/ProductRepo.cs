@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using POS.Data;
-using POS.Models;
+using POS.Entity;
 
 namespace POS.Repos
 {

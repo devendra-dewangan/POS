@@ -1,5 +1,4 @@
 using POS.Data;
-using POS.Services.Import;
 using POS.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -7,7 +6,7 @@ using LiteDB;
 using POS.Repos;
 using POS.Middleware;
 using Microsoft.AspNetCore.Identity;
-using POS.Models;
+using POS.Entity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -107,6 +106,9 @@ if (args.Contains("migrate"))
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseWebSockets();
 app.UseMiddleware<WebSocketHandlerMiddleware>();

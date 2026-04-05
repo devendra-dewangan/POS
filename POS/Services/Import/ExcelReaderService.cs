@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 using ExcelDataReader;
-using POS.Models;
+using POS.Entity;
 
 public class ExcelReaderService
 {

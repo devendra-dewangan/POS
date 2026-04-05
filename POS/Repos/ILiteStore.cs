@@ -1,5 +1,5 @@
 using LiteDB;
-using POS.Models;
+using POS.Entity;
 
 namespace POS.Repos;
 public interface ILiteStore

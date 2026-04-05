@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace POS.Models
+namespace POS.Entity
 {
     public class SaleItem
     {

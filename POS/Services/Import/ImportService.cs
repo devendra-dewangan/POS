@@ -1,10 +1,9 @@
 using POS.Data;
-using POS.Models;
-using POS.Services.ImportModels;
 using Microsoft.EntityFrameworkCore;
 using EFCore.BulkExtensions;
+using POS.Entity;
 
-namespace POS.Services.Import
+namespace POS.Services
 {
     public class ImportService : IImportService
     {

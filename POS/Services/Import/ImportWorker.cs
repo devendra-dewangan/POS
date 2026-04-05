@@ -1,4 +1,4 @@
-using POS.Services.Import;
+namespace POS.Services;
 
 public class ImportWorker : BackgroundService
 {

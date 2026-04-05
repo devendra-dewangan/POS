@@ -1,8 +1,4 @@
-using POS.Data;
-using POS.Models;
-
-using Microsoft.EntityFrameworkCore;
-using EFCore.BulkExtensions;
+using POS.Entity;
 using POS.Repos;
 
 namespace POS.Services

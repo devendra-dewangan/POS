@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using POS.Models;
+namespace POS.Entity;
 
 public class ImportInfo
 {
@@ -11,7 +11,7 @@ public class ImportInfo
     public DateTime ImportDate { get; set; } = DateTime.UtcNow;
 
     [JsonIgnore]
-    public ICollection<ImportPurchaseTemp> ImportPurchaseTemps { get; set; } = new List<ImportPurchaseTemp>();
+    public ICollection<ImportPurchaseTemp> ImportPurchaseTemps { get; set; } = [];
 }
 
 public enum ImportStatus

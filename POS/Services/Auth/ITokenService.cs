@@ -1,6 +1,6 @@
 
 
-using POS.Models;
+using POS.Entity;
 
 namespace POS.Services
 {

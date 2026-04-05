@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Http.HttpResults;
-
-namespace POS.Models;
+namespace POS.Entity;
 
 public enum CartStatus
 {

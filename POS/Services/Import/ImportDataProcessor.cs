@@ -1,7 +1,6 @@
-using POS.Models;
-using POS.Services.ImportModels;
+using POS.Entity;
 
-namespace POS.Services.Import
+namespace POS.Services
 {
     public class ImportDataProcessor
     {

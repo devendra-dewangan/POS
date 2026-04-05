@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using POS.Models;
+using POS.Entity;
 using POS.Repos;
 
 namespace POS.Services

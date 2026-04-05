@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using POS.Models;
+using POS.Entity;
 
 namespace POS.Data
 {

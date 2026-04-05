@@ -1,10 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using POS.Services.Import;
-using POS.Services.ImportModels;
-using System;
-using System.IO;
-using System.Reflection;
-using System.Threading.Tasks;
+using POS.Entity;
 
 namespace POS.Controllers
 {

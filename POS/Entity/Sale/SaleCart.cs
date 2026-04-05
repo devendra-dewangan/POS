@@ -1,4 +1,4 @@
-namespace POS.Models;
+namespace POS.Entity;
 
 public class SaleCart
 {

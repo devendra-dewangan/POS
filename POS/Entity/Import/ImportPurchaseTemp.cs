@@ -1,8 +1,7 @@
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace POS.Models
+namespace POS.Entity
 {
     [Table("ImportPurchaseTemp")]
     public class ImportPurchaseTemp
