@@ -77,11 +77,17 @@ namespace POS.Services
 
             var saleItem = new SaleItem
             {
-                BatchId = batchId,
                 Quantity = quantity,
-                UnitPrice = batch.SaleRate,
+                SaleRate = batch.SaleRate,
             };
 
+            var saleBatch = new SaleBatch
+            {
+                SaleItemId = saleItem.Id, // This will be set when the SaleItem is create
+                QuantityTaken = quantity,
+            };
+
+            saleItem.SaleBatches.Add(saleBatch);
             saleCart.Items.Add(saleItem);
             _liteStore.SaleCarts.Update(saleCart);
             return true;

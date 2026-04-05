@@ -11,12 +11,18 @@ namespace POS.Data
         }
 
         public DbSet<Product> Products { get; set; }
+        
+        public DbSet<Supplier> Suppliers { get; set; }
+        public DbSet<Purchase> Purchases { get; set; }
+        public DbSet<PurchaseItem> PurchaseItems { get; set; }
+
+        public DbSet<Buyer> Buyers { get; set; }
         public DbSet<Sale> Sales { get; set; }
         public DbSet<SaleItem> SaleItems { get; set; }
-        public DbSet<Purchase> Purchases { get; set; }
+        
         public DbSet<Batch> Batches { get; set; }
-        public DbSet<Supplier> Suppliers { get; set; }
-        public DbSet<Buyer> Buyers { get; set; }
+        public DbSet<SaleBatch> SaleBatches { get; set; }
+
         public DbSet<ImportInfo> ImportInfos { get; set; }
         public DbSet<ImportPurchaseTemp> ImportPurchaseTemp { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -53,12 +59,8 @@ namespace POS.Data
                 entity.HasOne(e => e.Sale)
                       .WithMany(s => s.SaleItems)
                       .HasForeignKey(e => e.SaleId);
-                entity.HasOne(e => e.Batch)
-                      .WithMany()
-                      .HasForeignKey(e => e.BatchId);
                 entity.Property(e => e.Quantity).IsRequired().HasColumnType("decimal(18,2)");
-                entity.Property(e => e.UnitPrice).IsRequired().HasColumnType("decimal(18,2)");
-                entity.Property(e => e.TotalAmount).IsRequired().HasColumnType("decimal(18,2)");
+                entity.Property(e => e.SaleRate).IsRequired().HasColumnType("decimal(18,2)");
             });
 
             // Configure Purchase entity
@@ -70,6 +72,19 @@ namespace POS.Data
                       .HasForeignKey(e => e.SupplierId);
                 entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.PurchaseDate).IsRequired();
+            });
+
+            modelBuilder.Entity<PurchaseItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Purchase)
+                      .WithMany(p => p.PurchaseItems)
+                      .HasForeignKey(e => e.PurchaseId);
+                entity.HasOne(e => e.Product)
+                      .WithMany(p => p.PurchaseItems)
+                      .HasForeignKey(e => e.ProductId);
+                entity.Property(e => e.Quantity).IsRequired().HasColumnType("decimal(18,2)");
+                entity.Property(e => e.PurchaseRate).IsRequired().HasColumnType("decimal(18,2)");
             });
 
             // Configure Supplier entity
@@ -87,13 +102,12 @@ namespace POS.Data
                       .WithMany(p => p.Batches)
                       .HasForeignKey(e => e.ProductId)
                       .OnDelete(DeleteBehavior.SetNull); // Allow null ProductId for empty batches
-                entity.HasOne(e => e.Purchase)
-                      .WithMany(p => p.PurchaseItems)
-                      .HasForeignKey(e => e.PurchaseId)
-                      .OnDelete(DeleteBehavior.SetNull); // Allow null PurchaseId
-                entity.Property(e => e.Stock).IsRequired().HasColumnType("decimal(18,2)");
-                entity.Property(e => e.PurchaseStock).IsRequired().HasColumnType("decimal(18,2)");
-                entity.Property(e => e.PurchaseRate).IsRequired().HasColumnType("decimal(18,2)");
+                entity.HasOne(e => e.PurchaseItem)
+                      .WithMany(p => p.Batches)
+                      .HasForeignKey(e => e.PurchaseItemId)
+                      .OnDelete(DeleteBehavior.SetNull); // Allow null PurchaseItemId
+                entity.Property(e => e.RemainingStock).IsRequired().HasColumnType("decimal(18,2)");
+                entity.Property(e => e.OpeningStock).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.MRP).IsRequired().HasColumnType("decimal(18,2)");
                 entity.Property(e => e.SaleRate).IsRequired().HasColumnType("decimal(18,2)");
             });
@@ -114,6 +128,20 @@ namespace POS.Data
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.ImportType).IsRequired();
                 entity.Property(e => e.ImportDate).IsRequired();
+            });
+
+            modelBuilder.Entity<SaleBatch>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.SaleItem)
+                      .WithMany(s => s.SaleBatches)
+                      .HasForeignKey(e => e.SaleItemId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Batch)
+                      .WithMany(b => b.SaleBatches)
+                      .HasForeignKey(e => e.BatchId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(e => e.QuantityTaken).IsRequired().HasColumnType("decimal(18,2)");
             });
 
             // Configure ImportPurchaseTemp entity

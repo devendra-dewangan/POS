@@ -20,8 +20,13 @@ namespace POS.Entity
         [StringLength(100)]
         [Display(Name = "Barcode")]
         public string Barcode { get; set; } = string.Empty;
+
+        public int TotalStock { get; set; } = 0;
         
         [JsonIgnore]
-        public ICollection<Batch> Batches { get; set; } = new List<Batch>();
+        public ICollection<Batch> Batches { get; set; } = [];
+
+        [JsonIgnore]
+        public ICollection<PurchaseItem> PurchaseItems { get; set; } = [];
     }
 }

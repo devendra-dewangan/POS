@@ -22,9 +22,8 @@ namespace POS.Services
 
             var batch = new Batch
             {
-                Stock = purchaseStock,
-                PurchaseStock = purchaseStock,
-                PurchaseRate = purchaseRate,
+                OpeningStock = purchaseStock,
+                RemainingStock = purchaseStock,
                 ProductId = productId,
                 MRP = mrp
             };

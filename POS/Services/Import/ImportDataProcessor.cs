@@ -99,12 +99,10 @@ namespace POS.Services
                     return new Batch
                     {
                         Product = product,
-                        Stock = record.Quantity,
-                        PurchaseStock = record.Quantity,
-                        PurchaseRate = record.PurchaseRate,
+                        OpeningStock = record.Quantity,
+                        RemainingStock = record.Quantity,
                         MRP = record.PurchaseRate,
                         SaleRate = record.PurchaseRate * 1.2m, // Assuming a default markup of 20%
-                        Purchase = purchase,
                     };
                 })
                 .ToList();

@@ -37,10 +37,9 @@ namespace POS.Services
                 var batch = new Batch
                 {
                     ProductId = product.Id, // Link batch to the created product
-                    PurchaseId = null, // No purchase associated (empty batch)
-                    Stock = 0, // Initial stock is 0
-                    PurchaseStock = 0, // Initial purchase stock is 0
-                    PurchaseRate = 0, // Initial purchase rate is 0
+                    PurchaseItemId = null, // No purchase associated (empty batch)
+                    RemainingStock = 0, // Initial stock is 0
+                    OpeningStock = 0, // Initial purchase stock is 0
                     MRP = 0, // Initial MRP is 0
                     SaleRate = 0 // Initial sale rate is 0
                 };

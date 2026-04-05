@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 
 namespace POS.Entity
@@ -12,22 +13,19 @@ namespace POS.Entity
         
         public Product? Product { get; set; }
         
-        public int? PurchaseId { get; set; }
+        public int? PurchaseItemId { get; set; }
         
-        public Purchase? Purchase { get; set; }
-        
-        [Required]
-        public decimal Stock { get; set; }
+        public PurchaseItem? PurchaseItem { get; set; }
         
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Purchase Stock must be a non-negative value")]
-        [Display(Name = "Purchase Stock")]
-        public decimal PurchaseStock { get; set; }
-        
+        [Range(0, double.MaxValue, ErrorMessage = "Remaining Stock must be a non-negative value")]
+        [Display(Name = "Remaining Stock")]
+        public decimal RemainingStock { get; set; }
+
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Purchase Rate must be a non-negative value")]
-        [Display(Name = "Purchase Rate")]
-        public decimal PurchaseRate { get; set; }
+        [Range(0, double.MaxValue, ErrorMessage = "Opening Stock must be a non-negative value")]
+        [Display(Name = "Opening Stock")]
+        public decimal OpeningStock { get; set; }
         
         [Required]
         [Range(0, double.MaxValue, ErrorMessage = "MRP must be a non-negative value")]
@@ -38,5 +36,8 @@ namespace POS.Entity
         [Range(0, double.MaxValue, ErrorMessage = "Sale Rate must be a non-negative value")]
         [Display(Name = "Sale Rate")]
         public decimal SaleRate { get; set; }
+
+        [JsonIgnore]
+        public ICollection<SaleBatch> SaleBatches { get; set; } = [];
     }
 }

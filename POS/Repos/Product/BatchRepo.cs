@@ -41,7 +41,7 @@ namespace POS.Repos
         public async Task<IEnumerable<Batch>?> GetByPurchaseIdAsync(int purchaseId)
         {
             return await _context.Batches
-                .Where(b => b.PurchaseId == purchaseId)
+                .Where(b => b.PurchaseItemId == purchaseId)
                 .ToListAsync();
         }
 

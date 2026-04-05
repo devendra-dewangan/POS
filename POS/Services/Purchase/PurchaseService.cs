@@ -45,7 +45,7 @@ namespace POS.Services
             await _unitOfWork.CommitAsync();
 
             var batches = purchaseCart.Items;
-            batches.ForEach(item => item.PurchaseId = purchase.Id); // Update the cart with the saved purchase (with ID)
+            batches.ForEach(item => item.PurchaseItemId = purchase.Id); // Update the cart with the saved purchase (with ID)
             await _unitOfWork.Batches.AddBulkAsync(batches);
             await _unitOfWork.CommitAsync();
 

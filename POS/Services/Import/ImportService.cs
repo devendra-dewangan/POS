@@ -249,7 +249,7 @@ namespace POS.Services
 
 
                     var suppliers = processedRecords
-                                    .Select(p => p.Purchase?.Supplier)
+                                    .Select(p => p.PurchaseItem?.Purchase?.Supplier)
                                     .Where(s => s != null && s.Id == 0)
                                     .Select(s => s!)
                                     .Distinct() //by reference
@@ -291,7 +291,7 @@ namespace POS.Services
                         _logger.LogInformation($"Batch {i + 1}: Added {products.Count} products.");
                     }
 
-                    var invoices = processedRecords.Select(p => p.Purchase)
+                    var invoices = processedRecords.Select(p => p.PurchaseItem?.Purchase)
                         .Where(p => p != null && p.Id == 0)
                         .Select(p => p!)
                         .Distinct() //by reference
@@ -318,7 +318,7 @@ namespace POS.Services
 
                     processedRecords.ForEach(r =>
                     {
-                        r.PurchaseId = r.Purchase != null ? r.Purchase.Id : r.PurchaseId;
+                        r.PurchaseItemId = r.PurchaseItem != null ? r.PurchaseItem.Id : r.PurchaseItemId;
                         r.ProductId = r.Product != null ? r.Product.Id : r.ProductId;
                     });
 

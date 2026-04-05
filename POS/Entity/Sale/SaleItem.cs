@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace POS.Entity
 {
@@ -12,19 +13,14 @@ namespace POS.Entity
         public Sale? Sale { get; set; }
         
         [Required]
-        public int BatchId { get; set; }
-        
-        public Batch? Batch { get; set; }
-        
-        [Required]
         [Range(0.001, double.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
         public decimal Quantity { get; set; }
         
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Unit price must be a positive value")]
-        public decimal UnitPrice { get; set; }
+        [Range(0, double.MaxValue, ErrorMessage = "Sale Rate must be a positive value")]
+        public decimal SaleRate { get; set; }
         
-        [Required]
-        public decimal TotalAmount { get; set; }
+        [JsonIgnore]
+        public ICollection<SaleBatch> SaleBatches { get; set; } = [];
     }
 }
