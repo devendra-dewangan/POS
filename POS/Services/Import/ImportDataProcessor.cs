@@ -1,24 +1,20 @@
 using POS.Entity;
+using POS.Repos;
 
 namespace POS.Services
 {
     public class ImportDataProcessor
     {
-        private readonly IProductService _productService;
-        private readonly ISupplierService _supplierService;
-        private readonly IPurchaseService _purchaseService;
-
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger _logger;
 
-        public ImportDataProcessor(IProductService productService, ISupplierService supplierService, IPurchaseService purchaseService, ILogger logger)
+        public ImportDataProcessor(IUnitOfWork unitOfWork, ILogger logger)
         {
-            _productService = productService;
-            _supplierService = supplierService;
-            _purchaseService = purchaseService;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
-        public async Task<List<Batch>> ProcessPurchaseDataFromTempTable(List<ImportPurchaseTemp> tempRecords)
+        public async Task<IEnumerable<Purchase>> ProcessPurchaseDataFromTempTable(IEnumerable<ImportPurchaseTemp> tempRecords)
         {
             // 1️⃣ Extract distinct supplier names
             var supplierNames = tempRecords
@@ -42,26 +38,24 @@ namespace POS.Services
                 .ToList();
 
             // 3️⃣ Query database ONCE
-            var suppliersFromDb = await _supplierService.GetSuppliersByNamesAsync(supplierNames);
-            var productsFromDb = await _productService.GetProductsByBarcodesAsync(barcodes);
-            var purchasesFromDb = await _purchaseService.GetPurchasesByInvoiceNumbersAsync(invoices);
+            var suppliersFromDb = await _unitOfWork.Suppliers.GetByNamesAsync(supplierNames);
+            var productsFromDb = await _unitOfWork.Products.GetByBarcodesAsync(barcodes);
+            var purchasesFromDb = await _unitOfWork.Purchases.GetByInvoiceNumbersAsync(invoices);
 
             // 4️⃣ Build dictionaries
-            var supplierCache = suppliersFromDb
+            var supplierCache = (suppliersFromDb ?? [])
                 .ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
-            var productCache = productsFromDb
+            var productCache = (productsFromDb ?? [])
                 .ToDictionary(p => p.Barcode, StringComparer.OrdinalIgnoreCase);
 
-            var purchaseCache = purchasesFromDb
+            var purchaseCache = (purchasesFromDb ?? [])
                 .ToDictionary(p => p.InvoiceNumber, StringComparer.OrdinalIgnoreCase);
 
-            // 5️⃣ Create purchases
-            var purchases = tempRecords
-                .Select(record =>
+            foreach (var record in tempRecords)
+            {
+                if (!purchaseCache.TryGetValue(record.InvoiceNo, out var purchase))
                 {
-
-                    // Resolve supplier
                     if (!supplierCache.TryGetValue(record.SupplierName, out var supplier))
                     {
                         supplier = new Supplier
@@ -72,42 +66,48 @@ namespace POS.Services
                         supplierCache[record.SupplierName] = supplier;
                     }
 
-                    if (!purchaseCache.TryGetValue(record.InvoiceNo, out var purchase))
+                    purchase = new Purchase
                     {
-                        purchase = new Purchase
-                        {
-                            InvoiceNumber = record.InvoiceNo,
-                            PurchaseDate = record.InvoiceDate,
-                            Supplier = supplier
-                        };
-
-                        purchaseCache[record.InvoiceNo] = purchase;
-                    }
-
-                    if(!productCache.TryGetValue(record.Barcode, out var product))
-                    {
-                        product = new Product
-                        {
-                            ProductName = record.ProductName,
-                            ProductCode = record.ProductCode,
-                            Barcode = record.Barcode
-                        };
-
-                        productCache[record.Barcode] = product;
-                    }
-
-                    return new Batch
-                    {
-                        Product = product,
-                        OpeningStock = record.Quantity,
-                        RemainingStock = record.Quantity,
-                        MRP = record.PurchaseRate,
-                        SaleRate = record.PurchaseRate * 1.2m, // Assuming a default markup of 20%
+                        InvoiceNumber = record.InvoiceNo,
+                        PurchaseDate = record.InvoiceDate,
+                        Supplier = supplier
                     };
-                })
-                .ToList();
 
-            return purchases;
+                    purchaseCache[record.InvoiceNo] = purchase;
+                }
+
+                if(!productCache.TryGetValue(record.Barcode, out var product))
+                {
+                    product = new Product
+                    {
+                        ProductName = record.ProductName,
+                        ProductCode = record.ProductCode,
+                        Barcode = record.Barcode
+                    };
+
+                    productCache[record.Barcode] = product;
+                }
+
+                purchase.PurchaseItems.Add(new PurchaseItem()
+                {
+                    Product = product,
+                    Purchase = purchase,
+                    Quantity = record.Quantity,
+                    PurchaseRate = record.PurchaseRate,
+                    Batches =
+                    [
+                        new() {
+                            Product = product,
+                            OpeningStock = record.Quantity,
+                            RemainingStock = record.Quantity,
+                            MRP = record.PurchaseRate,
+                            SaleRate = record.PurchaseRate,
+                        }
+                    ],
+                });
+            }
+
+            return [.. purchaseCache.Values];
         }
 
 

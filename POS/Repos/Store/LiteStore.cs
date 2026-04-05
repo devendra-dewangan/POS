@@ -17,4 +17,7 @@ public class LiteStore : ILiteStore
 
     private ILiteCollection<PurchaseCart>? _purchaseCarts;
     public ILiteCollection<PurchaseCart> PurchaseCarts => _purchaseCarts ??= _context.PurchaseCarts;
+
+    private ILiteCollection<ImportCart>? _importInfos;
+    public ILiteCollection<ImportCart> ImportInfos => _importInfos ??= _context.ImportInfos;
 }

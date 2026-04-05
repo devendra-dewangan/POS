@@ -4,8 +4,9 @@ namespace POS.Repos
 {
     public interface IProductRepo : IRepository<Product>, IAddBulk<Product>
     {
-        Task<Product?> GetByBarcodeAsync(string barcode);
+        Task<IEnumerable<Product>?> GetByBarcodeAsync(string barcode);
         Task<IEnumerable<Product>?> GetByNameAsync(string name);
-        Task<IEnumerable<Product>?> GetProductsByBarcodesAsync(IEnumerable<string> barcodes);
+        Task<IEnumerable<Product>?> GetByBarcodesAsync(IEnumerable<string> barcodes);
+        Task<IEnumerable<Product>?> GetByIdsAsync(IEnumerable<int> ids);
     }
 }

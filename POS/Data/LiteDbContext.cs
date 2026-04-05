@@ -16,4 +16,7 @@ public class LiteDbContext
     
     public ILiteCollection<PurchaseCart> PurchaseCarts =>
         _db.GetCollection<PurchaseCart>("purchaseCarts");
+
+    public ILiteCollection<ImportCart> ImportInfos =>
+        _db.GetCollection<ImportCart>("importInfos");
 }

@@ -6,4 +6,5 @@ public interface ILiteStore
 {
     ILiteCollection<PurchaseCart> PurchaseCarts {get;}
     ILiteCollection<SaleCart> SaleCarts {get;}
+    ILiteCollection<ImportCart> ImportInfos { get; }
 }

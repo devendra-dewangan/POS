@@ -1,55 +1,45 @@
-using POS.Data;
-using Microsoft.EntityFrameworkCore;
-using EFCore.BulkExtensions;
 using POS.Entity;
+using POS.Repos;
 
 namespace POS.Services
 {
     public class ImportService : IImportService
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILiteStore _liteStore;
         private readonly ExcelReaderService _excelReaderService;
         private readonly ImportDataProcessor _dataProcessor;
-        private readonly IPurchaseService _purchaseService;
-        private readonly ISupplierService _supplierService;
-        private readonly IProductService _productService;
-
-        private readonly IBatchService _batchService;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly Dictionary<int, List<ValidationError>> _validationErrors;
         private readonly List<ImportError> _errorList;
         private ImportInfo _importInfo;
+        private readonly ILogger<ImportService> _logger;
+        
         private const int BatchSizeErrors = 100;
         private const int BatchSize = 5000;
 
-        private readonly ILogger<ImportService> _logger;
 
-        public ImportService(
-            AppDbContext context,
-            ExcelReaderService excelReaderService,
-            IProductService productService,
-            ISupplierService supplierService,
-            IPurchaseService purchaseService,
-            IBatchService batchService,
-            ILogger<ImportService> logger
-            )
+        public ImportService(ILogger<ImportService> logger, IUnitOfWork unitOfWork, ILiteStore liteStore)
         {
-            _context = context;
-            _excelReaderService = excelReaderService;
-            _supplierService = supplierService;
-            _productService = productService;
-            _purchaseService = purchaseService;
-            _batchService = batchService;
+            _unitOfWork = unitOfWork;
+            _liteStore = liteStore;
             _logger = logger;
 
+            _dataProcessor = new ImportDataProcessor(unitOfWork, _logger);
+            _excelReaderService = new ExcelReaderService();
             _cancellationTokenSource = new CancellationTokenSource();
             _validationErrors = new Dictionary<int, List<ValidationError>>();
             _errorList = new List<ImportError>();
             _importInfo = new ImportInfo();
-            _dataProcessor = new ImportDataProcessor(_productService, _supplierService, _purchaseService, _logger);
         }
 
-        public async Task<bool> ImportPurchaseDataAsync(string filepath)
+        public Task<bool> ImportPurchaseDataAsync(string filepath)
+        {
+            return ImportPurchaseDataAsync(filepath, $"Import completed with {_validationErrors.Count} records having validation errors.");
+        }
+
+
+        public async Task<bool> ImportPurchaseDataAsync(string filepath, string message)
         {
             _importInfo.ImportType = ImportType.Purchase;
             _importInfo.FileName = Path.GetFileName(filepath);
@@ -78,15 +68,13 @@ namespace POS.Services
 
                 if (_validationErrors.Count != 0 || _errorList.Count != 0)
                 {
-                    _logger.LogInformation($"Import completed with {_validationErrors.Count} records having validation errors.");
+                    _logger.LogInformation(message);
                     await DeleteImportDataAsync(_importInfo.Id);
                     return false;
                 }
 
                 // Process data with validation and transaction handling
-                return await ProcessDataWithValidationAndTransaction(_importInfo.Id);
-
-
+                return await ProcessDataWithValidationAndTransaction();
             }
             catch (Exception ex)
             {
@@ -194,7 +182,13 @@ namespace POS.Services
 
                 _logger.LogInformation($"Batch {rowNumber / BatchSize}: Saving {tempRecords.Count} records to database.");
                 // Save batch to database
-                await _context.BulkInsertAsync(tempRecords);
+
+                
+                _liteStore.ImportInfos.InsertBulk(tempRecords.Select(tempRecord => new ImportCart
+                {
+                    Item = tempRecord,
+                    ImportId = _importInfo.Id
+                }));
             }
             catch (Exception ex)
             {
@@ -225,11 +219,11 @@ namespace POS.Services
             }
         }
 
-        private async Task<bool> ProcessDataWithValidationAndTransaction(int importId)
+        private async Task<bool> ProcessDataWithValidationAndTransaction()
         {
 
             // Use transaction only for the final processing and saving
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
 
             try
             {
@@ -237,111 +231,24 @@ namespace POS.Services
                 for (int i = 0; i < Math.Ceiling((double)_importInfo.TotalRecords / BatchSize); i++)
                 {
                     // Get next batch of pending records
-                    var batchRecords = await _context.ImportPurchaseTemp
-                        .Where(t => t.ImportId == importId && t.Status == ImportStatus.NotStarted)
+                    var batchRecords = _liteStore.ImportInfos
+                        .Query()
+                        .Where(t => t.ImportId == _importInfo.Id)
+                        .Select(t => t.Item)
                         .Skip(i * BatchSize)
-                        .Take(BatchSize)
-                        .ToListAsync();
+                        .Limit(BatchSize)
+                        .ToList();
 
                     // Process the batch
                     var processedRecords =
-                        await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords);
+                        await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords!);
 
-
-                    var suppliers = processedRecords
-                                    .Select(p => p.PurchaseItem?.Purchase?.Supplier)
-                                    .Where(s => s != null && s.Id == 0)
-                                    .Select(s => s!)
-                                    .Distinct() //by reference
-                                    .Distinct().ToList();
-
-
-                    // save supplier
-                    if (suppliers.Count != 0)
-                    {
-                        var isSupplierAdded = await _supplierService.BulkAddSuppliersAsync(suppliers);
-                        if (!isSupplierAdded)
-                        {
-                            // Processing failed - rollback transaction
-                            _logger.LogError($"Batch {i + 1}: Failed to add suppliers. Rolling back transaction.");
-                            await transaction.RollbackAsync();
-                            return false;
-                        }
-                        _logger.LogInformation($"Batch {i + 1}: Added {suppliers.Count} suppliers.");
-                    }
-
-                    var products = processedRecords
-                        .Select(i => i.Product)
-                        .Where(p => p != null && p.Id == 0)
-                        .Select(p => p!)
-                        .Distinct() //by reference
-                        .ToList();
-
-                    //save product
-                    if (products.Count != 0)
-                    {
-                        var isProductAdded = await _productService.BulkAddProductsAsync(products);
-                        if (!isProductAdded)
-                        {
-                            // Processing failed - rollback transaction
-                            _logger.LogError($"Batch {i + 1}: Failed to add products. Rolling back transaction.");
-                            await transaction.RollbackAsync();
-                            return false;
-                        }
-                        _logger.LogInformation($"Batch {i + 1}: Added {products.Count} products.");
-                    }
-
-                    var invoices = processedRecords.Select(p => p.PurchaseItem?.Purchase)
-                        .Where(p => p != null && p.Id == 0)
-                        .Select(p => p!)
-                        .Distinct() //by reference
-                        .ToList();
-
-                    if (invoices.Count != 0)
-                    {
-
-                        invoices.ForEach(inv =>
-                        {
-                            inv.SupplierId = inv.Supplier != null ? inv.Supplier.Id : inv.SupplierId;
-                        });
-
-                        var savedInvoices = await _purchaseService.AddPurchaseBulkAsync(invoices);
-                        if (!savedInvoices)
-                        {
-                            // Processing failed - rollback transaction
-                            _logger.LogError($"Batch {i + 1}: Failed to add invoices. Rolling back transaction.");
-                            await transaction.RollbackAsync();
-                            return false;
-                        }
-                        _logger.LogInformation($"Batch {i + 1}: Added {invoices.Count} invoices.");
-                    }
-
-                    processedRecords.ForEach(r =>
-                    {
-                        r.PurchaseItemId = r.PurchaseItem != null ? r.PurchaseItem.Id : r.PurchaseItemId;
-                        r.ProductId = r.Product != null ? r.Product.Id : r.ProductId;
-                    });
-
-
-                    //save purchase 
-                    var saveResult = await _batchService.BulkAddBatchesAsync(processedRecords);
-                    if (!saveResult)
-                    {
-                        // Processing failed - rollback transaction
-                        _logger.LogError($"Batch {i + 1}: Failed to save purchases. Rolling back transaction.");
-                        await transaction.RollbackAsync();
-                        return false;
-                    }
-                    _logger.LogInformation($"Batch {i + 1}: Saved {processedRecords.Count} purchases.");
-
-                    // Update temp records status to Processed
-                    batchRecords.ForEach(r => r.Status = ImportStatus.Completed);
-                    await _context.BulkUpdateAsync(batchRecords);
-                    _logger.LogInformation($"Batch {i + 1}: Updated temp records status to Completed.");
+                    // Save processed data to main tables
+                    await _unitOfWork.Purchases.AddBulkAsync(processedRecords);
+                    await _unitOfWork.CommitAsync();
+                    _logger.LogInformation($"Batch {i + 1} processed and saved successfully.");
 
                 }
-
-
                 // Commit the transaction if all processing is successful
                 await transaction.CommitAsync();
                 return true;
@@ -357,16 +264,13 @@ namespace POS.Services
 
         public async Task<bool> DeleteImportDataAsync(int importId)
         {
-            var records = await _context.ImportPurchaseTemp
-            .Where(t => t.ImportId == importId)
-            .ExecuteDeleteAsync();
-            return records > 0;
+            return _liteStore.ImportInfos.DeleteMany(t => t.ImportId == importId) > 0;
         }
 
         public async Task<int> CreateImportInfoAsync(ImportInfo importInfo)
         {
-            await _context.ImportInfos.AddAsync(importInfo);
-            return await _context.SaveChangesAsync();
+            await _unitOfWork.ImportInfos.AddAsync(importInfo);
+            return await _unitOfWork.CommitAsync();
         }
     }
 }

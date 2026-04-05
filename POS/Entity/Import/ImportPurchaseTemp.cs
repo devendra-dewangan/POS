@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace POS.Entity
 {
@@ -51,6 +52,7 @@ namespace POS.Entity
         [Required]
         public int ImportId { get; set; }
 
-        public ImportInfo ImportInfo { get; set; } = null!;
+        [JsonIgnore]
+        public ImportInfo? ImportInfo { get; set; }
     }
 }

@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Storage;
+
 namespace POS.Repos
 {
     public interface IUnitOfWork
@@ -10,7 +12,10 @@ namespace POS.Repos
         ISupplierRepo Suppliers {get;}
         IPurchaseRepo Purchases {get;}
         IRefreshTokenRepo RefreshTokens { get; }
+        IPurchaseItemRepo PurchaseItems { get; }
+        IImportInfoRepo ImportInfos { get; }
 
         Task<int> CommitAsync(CancellationToken cancellationToke = default);
+        Task<IDbContextTransaction> BeginTransactionAsync();
     }
 }

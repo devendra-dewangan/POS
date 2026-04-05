@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Storage;
 using POS.Data;
 
 namespace POS.Repos
@@ -28,9 +29,20 @@ namespace POS.Repos
         private IRefreshTokenRepo? _refreshTokens;
         public IRefreshTokenRepo RefreshTokens => _refreshTokens ??= new RefreshTokenRepo(context);
 
+        private IPurchaseItemRepo? _purchaseItems;
+        public IPurchaseItemRepo PurchaseItems => _purchaseItems ??= new PurchaseItemRepo(context);
+
+        private IImportInfoRepo? _importInfos;
+        public IImportInfoRepo ImportInfos => _importInfos ??= new ImportInfoRepo(context);
+
         public async Task<int> CommitAsync(CancellationToken cancellationToken = default)
         {
             return await context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await context.Database.BeginTransactionAsync();
         }
 
     }

@@ -24,7 +24,7 @@ namespace POS.Data
         public DbSet<SaleBatch> SaleBatches { get; set; }
 
         public DbSet<ImportInfo> ImportInfos { get; set; }
-        public DbSet<ImportPurchaseTemp> ImportPurchaseTemp { get; set; }
+        
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -142,18 +142,6 @@ namespace POS.Data
                       .HasForeignKey(e => e.BatchId)
                       .OnDelete(DeleteBehavior.Cascade);
                 entity.Property(e => e.QuantityTaken).IsRequired().HasColumnType("decimal(18,2)");
-            });
-
-            // Configure ImportPurchaseTemp entity
-            modelBuilder.Entity<ImportPurchaseTemp>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                
-                // Configure relationship with ImportInfo
-                entity.HasOne(e => e.ImportInfo)
-                      .WithMany(i => i.ImportPurchaseTemps)
-                      .HasForeignKey(e => e.ImportId)
-                      .OnDelete(DeleteBehavior.Cascade); // Cascade delete when ImportInfo is deleted
             });
 
             modelBuilder.Entity<RefreshToken>(entity =>
