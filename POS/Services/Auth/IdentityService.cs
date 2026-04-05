@@ -25,7 +25,7 @@ namespace POS.Services
             await _userManager.AddToRoleAsync(user, role);
         }
 
-        public async Task<AuthResponse> LoginAsync(LoginDto dto)
+        public async Task<AuthResponse?> LoginAsync(LoginDto dto)
         {
             var user = await _userManager.FindByNameAsync(dto.UserName);
 
@@ -74,7 +74,7 @@ namespace POS.Services
             return "Success";
         }
 
-        public async Task<AuthResponse> RefreshAsync(string refreshToken)
+        public async Task<AuthResponse?> RefreshAsync(string refreshToken)
         {
             var tokenHash = _tokenService.HashToken(refreshToken);
 
@@ -126,7 +126,7 @@ namespace POS.Services
 
     public class AuthResponse
     {
-        public string AccessToken { get; set; }
-        public string RefreshToken { get; set; }
+        public string AccessToken { get; set; } = null!;
+        public string RefreshToken { get; set; } = null!;
     }
 }

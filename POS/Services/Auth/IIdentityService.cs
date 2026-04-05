@@ -3,8 +3,9 @@ namespace POS.Services
     public interface IIdentityService
     {
         Task<string> RegisterAsync(RegisterDto dto);
-        Task<AuthResponse> LoginAsync(LoginDto dto);
+        Task<AuthResponse?> LoginAsync(LoginDto dto);
         Task AssignRoleAsync(string userId, string role);
+        Task<AuthResponse?> RefreshAsync(string refreshToken);
     }
 
     public class LoginDto

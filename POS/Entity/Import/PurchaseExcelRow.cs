@@ -1,6 +1,4 @@
-using System;
-
-namespace POS.Services.ImportModels
+namespace POS.Models
 {
     public class PurchaseExcelRow
     {
