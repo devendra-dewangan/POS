@@ -36,9 +36,9 @@ namespace POS.Repos
             return Task.Run(() =>true);
         }
 
-        public async Task<Product?> GetByBarcodeAsync(string barcode)
+        public async Task<IEnumerable<Product>?> GetByBarcodeAsync(string barcode)
         {
-            return await _context.Products.FirstOrDefaultAsync(x => x.Barcode == barcode);
+            return await _context.Products.Where(x => x.Barcode == barcode).ToListAsync();
         }
 
         public async Task<IEnumerable<Product>?> GetByNameAsync(string name)
