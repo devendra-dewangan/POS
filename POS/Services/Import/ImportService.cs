@@ -180,7 +180,6 @@ namespace POS.Services
                     return;
                 }
 
-                _logger.LogInformation($"Batch {rowNumber / BatchSize}: Saving {tempRecords.Count} records to database.");
                 // Save batch to database
 
                 
@@ -189,6 +188,7 @@ namespace POS.Services
                     Item = tempRecord,
                     ImportId = _importInfo.Id
                 }));
+                _logger.LogInformation($"Batch {rowNumber / BatchSize}: Saved {tempRecords.Count} records to temporary database.");
             }
             catch (Exception ex)
             {
@@ -243,8 +243,25 @@ namespace POS.Services
                     var processedRecords =
                         await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords!);
 
+                    var newSupplier = processedRecords.Where(pi=> pi.Purchase!.Supplier!.Id == 0)
+                                        .Select(pi=> pi.Purchase!.Supplier).Distinct();
+                    if (newSupplier.Any())
+                    {
+                        await _unitOfWork.Suppliers.AddBulkAsync(newSupplier!);
+                        await _unitOfWork.CommitAsync();
+                    }
+
+                    var newPurchase = processedRecords.Where(pi=> pi.Purchase!.Id == 0)
+                                        .Select(pi=> {
+                                            pi.Purchase!.SupplierId = pi.Purchase.Supplier!.Id;
+                                            return pi.Purchase;}).Distinct();
+                    if (newPurchase.Any())
+                    {
+                        await _unitOfWork.Purchases.AddBulkAsync(newPurchase!);
+                        await _unitOfWork.CommitAsync();
+                    }
                     // Save processed data to main tables
-                    await _unitOfWork.Purchases.AddBulkAsync(processedRecords);
+                    await _unitOfWork.PurchaseItems.AddBulkAsync(processedRecords);
                     await _unitOfWork.CommitAsync();
                     _logger.LogInformation($"Batch {i + 1} processed and saved successfully.");
 
@@ -256,8 +273,9 @@ namespace POS.Services
             catch (Exception ex)
             {
                 // Rollback transaction on any error
-                _logger.LogError($"Error processing data with transaction: {ex.Message}");
                 await transaction.RollbackAsync();
+                await DeleteImportDataAsync(_importInfo.Id);
+                _logger.LogError($"Error processing data with transaction: {ex.Message}");
                 return false;
             }
         }

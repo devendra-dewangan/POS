@@ -14,7 +14,7 @@ namespace POS.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<Purchase>> ProcessPurchaseDataFromTempTable(IEnumerable<ImportPurchaseTemp> tempRecords)
+        public async Task<IEnumerable<PurchaseItem>> ProcessPurchaseDataFromTempTable(IEnumerable<ImportPurchaseTemp> tempRecords)
         {
             // 1️⃣ Extract distinct supplier names
             var supplierNames = tempRecords
@@ -52,25 +52,25 @@ namespace POS.Services
             var purchaseCache = (purchasesFromDb ?? [])
                 .ToDictionary(p => p.InvoiceNumber, StringComparer.OrdinalIgnoreCase);
 
-            foreach (var record in tempRecords)
+            var purchaseItems = tempRecords.Select(record =>
             {
+                if (!supplierCache.TryGetValue(record.SupplierName, out var supplier))
+                {
+                    supplier = new Supplier
+                    {
+                        Name = record.SupplierName
+                    };
+
+                    supplierCache[record.SupplierName] = supplier;
+                }
+
                 if (!purchaseCache.TryGetValue(record.InvoiceNo, out var purchase))
                 {
-                    if (!supplierCache.TryGetValue(record.SupplierName, out var supplier))
-                    {
-                        supplier = new Supplier
-                        {
-                            Name = record.SupplierName
-                        };
-
-                        supplierCache[record.SupplierName] = supplier;
-                    }
-
+                    
                     purchase = new Purchase
                     {
                         InvoiceNumber = record.InvoiceNo,
                         PurchaseDate = record.InvoiceDate,
-                        Supplier = supplier
                     };
 
                     purchaseCache[record.InvoiceNo] = purchase;
@@ -88,7 +88,9 @@ namespace POS.Services
                     productCache[record.Barcode] = product;
                 }
 
-                purchase.PurchaseItems.Add(new PurchaseItem()
+                product.TotalStock += record.Quantity;
+
+                return new PurchaseItem()
                 {
                     Product = product,
                     Purchase = purchase,
@@ -104,12 +106,9 @@ namespace POS.Services
                             SaleRate = record.PurchaseRate,
                         }
                     ],
-                });
-                
-                product.TotalStock += record.Quantity; 
-            }
-
-            return [.. purchaseCache.Values];
+                };
+            });
+            return purchaseItems;
         }
 
 
