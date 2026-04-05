@@ -7,7 +7,10 @@ namespace POS.Entity
     public class Batch
     {
         public int Id { get; set; }
-        
+
+        [Display(Name = "Batch Number")]
+        public string? BatchNumber { get; set; }
+
         [Required]
         public int ProductId { get; set; }
         

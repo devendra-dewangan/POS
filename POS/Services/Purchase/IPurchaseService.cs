@@ -1,13 +1,14 @@
 using POS.Entity;
+using POS.Model;
 
 namespace POS.Services
 {
     public interface IPurchaseService
     {
-        Task<int> AddPurchaseAsync(int supplierId, string invoiceNumber, DateTime purchaseDate);
-        Task<Purchase?> GetPurchaseByInvoiceAsync(string invoiceNumber);
+        Task<int> AddPurchaseAsync(int supplierId);
+        Task<IEnumerable<Purchase>?> GetPurchaseByInvoiceAsync(string invoiceNumber);
+        Task<Purchase?> AddPurchaseItemAsync(int purchaseDraftId, AddPurchaseItemRequestDto request);
+        Task<Purchase> CompletePurchaseAsync(int purchaseCartId);
         Task<IEnumerable<Purchase>> GetAllPurchasesAsync();
-        Task<IEnumerable<Purchase>> GetPurchasesByInvoiceNumbersAsync(IEnumerable<string> invoiceNumbers);
-        Task<bool> AddPurchaseBulkAsync(IEnumerable<Purchase> purchases);
     }
 }

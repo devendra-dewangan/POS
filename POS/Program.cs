@@ -67,25 +67,22 @@ builder.Services.AddControllers();
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
 
-// Add ExcelReaderService
-builder.Services.AddScoped<ExcelReaderService>();
+builder.Services.AddScoped<LiteDbContext>();
+builder.Services.AddScoped<ILiteStore, LiteStore>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddSingleton<ImportQueue>();
 builder.Services.AddHostedService<ImportWorker>();
+
+builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddSingleton<IConnectionManager, ConnectionManager>();
 
 // Add business services
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
-builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IBuyerService, BuyerService>();
-builder.Services.AddScoped<IImportService, ImportService>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-builder.Services.AddScoped<IIdentityService, IdentityService>();
-
-builder.Services.AddScoped<LiteDbContext>();
-builder.Services.AddScoped<ILiteStore, LiteStore>();
-
-builder.Services.AddSingleton<IConnectionManager, ConnectionManager>();
 
 
 if (builder.Environment.IsDevelopment())

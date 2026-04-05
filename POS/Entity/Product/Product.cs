@@ -21,7 +21,8 @@ namespace POS.Entity
         [Display(Name = "Barcode")]
         public string Barcode { get; set; } = string.Empty;
 
-        public int TotalStock { get; set; } = 0;
+        [Display(Name = "Total Stock")]
+        public decimal TotalStock { get; set; } = 0;
         
         [JsonIgnore]
         public ICollection<Batch> Batches { get; set; } = [];
