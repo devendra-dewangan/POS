@@ -1,3 +1,4 @@
+using NetTopologySuite.Index.HPRtree;
 using POS.Entity;
 using POS.Repos;
 
@@ -71,6 +72,7 @@ namespace POS.Services
                     {
                         InvoiceNumber = record.InvoiceNo,
                         PurchaseDate = record.InvoiceDate,
+                        Supplier = supplier
                     };
 
                     purchaseCache[record.InvoiceNo] = purchase;
@@ -108,9 +110,62 @@ namespace POS.Services
                     ],
                 };
             });
+
+            var newProduct = productCache.Where(x => x.Value.Id == 0).Select(x=>x.Value);
+            if (newProduct.Any())
+            {
+                await _unitOfWork.Products.AddBulkAsync(newProduct);
+                _logger.LogInformation("adding new product" + newProduct.Count(i => i.Id == 0));
+            }
+
+            var newSup = supplierCache.Where(x => x.Value.Id == 0).Select(x=>x.Value);
+            if (newSup.Any())
+            {
+                await _unitOfWork.Suppliers.AddBulkAsync(newSup);
+                _logger.LogInformation("adding new supplier" + newSup.Count(i => i.Id == 0));
+
+            }
+
+            if (newProduct.Any() || newSup.Any())
+            {
+                var saved = await _unitOfWork.CommitAsync();
+                _logger.LogInformation($"Saved {saved} rows");
+
+            }
+
+            var newPurcahse = purchaseCache.Where(x => x.Value.Id == 0)
+                                .Select(x=> x.Value);
+            if (newPurcahse.Any())
+            {
+                foreach (var purchase in newPurcahse)
+                {
+                    purchase.SupplierId = purchase.Supplier!.Id;
+                    purchase.Supplier = null;
+                }
+                await _unitOfWork.Purchases.AddBulkAsync(newPurcahse);
+                _logger.LogInformation("adding new purchase" + newPurcahse.Count(i => i.Id == 0));
+
+                var saved = await _unitOfWork.CommitAsync();
+                _logger.LogInformation($"Added {saved} rows");
+
+            }
+
+            foreach (var item in purchaseItems)
+            {
+                item.PurchaseId = item.Purchase!.Id;
+                item.Purchase = null;
+
+                item.ProductId = item.Product!.Id;
+
+                foreach(var batch in item.Batches)
+                {
+                    batch.ProductId = batch.Product!.Id;
+                    batch.Product = null;
+                }
+            }
+
             return purchaseItems;
         }
-
 
         public List<ValidationError> ValidateData(ImportPurchaseTemp record, int rowCount)
         {

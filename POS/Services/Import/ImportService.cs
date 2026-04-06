@@ -243,27 +243,15 @@ namespace POS.Services
                     var processedRecords =
                         await _dataProcessor.ProcessPurchaseDataFromTempTable(batchRecords!);
 
-                    var newSupplier = processedRecords.Where(pi=> pi.Purchase!.Supplier!.Id == 0)
-                                        .Select(pi=> pi.Purchase!.Supplier).Distinct();
-                    if (newSupplier.Any())
+                    foreach (var record in processedRecords)
                     {
-                        await _unitOfWork.Suppliers.AddBulkAsync(newSupplier!);
-                        await _unitOfWork.CommitAsync();
-                    }
-
-                    var newPurchase = processedRecords.Where(pi=> pi.Purchase!.Id == 0)
-                                        .Select(pi=> {
-                                            pi.Purchase!.SupplierId = pi.Purchase.Supplier!.Id;
-                                            return pi.Purchase;}).Distinct();
-                    if (newPurchase.Any())
-                    {
-                        await _unitOfWork.Purchases.AddBulkAsync(newPurchase!);
-                        await _unitOfWork.CommitAsync();
+                        record.Product!.TotalStock += record.Quantity;
+                        record.Product = null;
                     }
                     // Save processed data to main tables
                     await _unitOfWork.PurchaseItems.AddBulkAsync(processedRecords);
-                    await _unitOfWork.CommitAsync();
-                    _logger.LogInformation($"Batch {i + 1} processed and saved successfully.");
+                    var saved = await _unitOfWork.CommitAsync();
+                    _logger.LogInformation($"Batch {i + 1} processed and added {saved} row successfully.");
 
                 }
                 // Commit the transaction if all processing is successful

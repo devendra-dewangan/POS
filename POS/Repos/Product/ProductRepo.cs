@@ -58,7 +58,7 @@ namespace POS.Repos
 
         public async Task<IEnumerable<Product>?> GetByBarcodesAsync(IEnumerable<string> barcodes)
         {
-            if (barcodes == null || barcodes.Any())
+            if (barcodes == null || !barcodes.Any())
                 return [];
 
             return await _context.Products
