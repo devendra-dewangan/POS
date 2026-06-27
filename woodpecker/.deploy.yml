@@ -1,0 +1,168 @@
+steps:
+  build-backend:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
+    commands:
+      - echo "Running Build Stage"
+      - dotnet restore POS/POS.csproj
+      - dotnet build POS/POS.csproj --configuration Release --no-restore
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "build" || STAGE == "all" 
+  
+        
+  ut-backend:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
+    depends_on: [ build-backend ]
+    commands:
+      - echo "Running Test Stage"
+      - dotnet test POS.UnitTests/POS.UnitTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "ut" || STAGE == "all"
+
+  build-frontend:
+    image: node:24 
+    volumes:
+      - node-cache:/root/.npm
+    commands:
+      - echo "Running Build Stage"
+      - cd $CI_WORKSPACE/POS.UI
+      - npm ci
+      - npm run build --prod
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "build" || STAGE == "all"
+
+  ut-frontend:
+    image: node:24
+    volumes:
+      - node-cache:/root/.npm
+    depends_on: [ build-frontend ]
+    commands:
+      - cd $CI_WORKSPACE/POS.UI
+      - echo "Running Test Stage"
+      - npm test --watch=false 
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "ut" || STAGE == "all"
+
+  api-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
+    depends_on: [ build-backend ]
+    commands:
+      - echo "Running API Tests"
+      - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "api" || STAGE == "all"
+
+  integration-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
+    depends_on: [ build-backend ]
+    commands:
+      - echo "Running Integration Tests"
+      - dotnet test POS.IntegrationTests/POS.IntegrationTests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "integration" || STAGE == "all"
+
+  docker-push:
+    image: docker:24
+    depends_on: [ build-backend, build-frontend ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - echo "Logging into registry"
+      - echo "$DOCKER_PASSWORD" | docker login localhost:81 -u "$DOCKER_USERNAME" --password-stdin
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - docker build -t localhost:81/pos-app:$SHORT_SHA -t localhost:81/pos-app:latest -f Dockerfile .
+      - docker push localhost:81/pos-app:$SHORT_SHA
+      - docker push localhost:81/pos-app:latest
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "push" || STAGE == "all"
+
+  test-migrate:
+    image: docker:24
+    depends_on: [ docker-push ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    commands:
+      - echo "$DOCKER_PASSWORD" | docker login reg-devdew.chub-beta.ts.net -u "$DOCKER_USERNAME" --password-stdin
+      - cd $CI_WORKSPACE
+      - docker compose pull
+      - docker compose run --rm migrate
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "test-migrate" || STAGE == "all"
+
+  test-deploy:
+    image: docker:24
+    depends_on: [ docker-push ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    commands:
+      - echo "$DOCKER_PASSWORD" | docker login reg-devdew.chub-beta.ts.net -u "$DOCKER_USERNAME" --password-stdin
+      - cd $CI_WORKSPACE
+      - docker compose up -d --force-recreate --pull always --remove-orphans
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "test-deploy" || STAGE == "all"
+
+  e2e-tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    volumes:
+      - dotnet-cache:/root/.nuget/packages
+    depends_on: [ test-deploy ]
+    commands:
+      - echo "Installing Playwright Browsers"
+      - dotnet build POS.E2ETests/POS.E2ETests.csproj
+      # - pwsh POS.E2ETests/E2ETests/bin/Release/net8.0/playwright.ps1 install
+      - echo "Running E2E Tests"
+      - dotnet test POS.E2ETests/POS.E2ETests.csproj --configuration Release
+    when:
+      - event: push
+        evaluate: CI_COMMIT_BRANCH == "master"
+      - event: manual
+        evaluate: STAGE == "e2e" || STAGE == "all"
