@@ -1,11 +1,8 @@
 using Moq;
 using POS.Data;
-using POS.Models;
-using POS.Services.Import;
+using POS.Entity;
 using POS.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace POS.UnitTests.Mocks
 {
@@ -37,10 +34,6 @@ namespace POS.UnitTests.Mocks
 
         #region Service Mocks
 
-        public static Mock<IBatchService> CreateMockBatchService()
-        {
-            return new Mock<IBatchService>();
-        }
 
         public static Mock<IBuyerService> CreateMockBuyerService()
         {
@@ -80,9 +73,9 @@ namespace POS.UnitTests.Mocks
         {
             return new List<Batch>
             {
-                new Batch { Id = 1, ProductId = 1, PurchaseId = 1, Stock = 100, PurchaseStock = 100, PurchaseRate = 10.00m, MRP = 15.00m, SaleRate = 12.00m },
-                new Batch { Id = 2, ProductId = 2, PurchaseId = 2, Stock = 50, PurchaseStock = 50, PurchaseRate = 20.00m, MRP = 25.00m, SaleRate = 22.00m },
-                new Batch { Id = 3, ProductId = 3, PurchaseId = 3, Stock = 75, PurchaseStock = 75, PurchaseRate = 5.00m, MRP = 8.00m, SaleRate = 6.00m }
+                new Batch { Id = 1, ProductId = 1, MRP = 15.00m, SaleRate = 12.00m },
+                new Batch { Id = 2, ProductId = 2, MRP = 25.00m, SaleRate = 22.00m },
+                new Batch { Id = 3, ProductId = 3, MRP = 8.00m, SaleRate = 6.00m }
             };
         }
 
