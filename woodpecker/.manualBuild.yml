@@ -8,10 +8,7 @@ steps:
       - dotnet restore POS/POS.csproj
       - dotnet build POS/POS.csproj --configuration Release --no-restore
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "build" || STAGE == "all" 
+      - event: manual 
   
         
   ut-backend:
@@ -23,10 +20,7 @@ steps:
       - echo "Running Test Stage"
       - dotnet test POS.UnitTests/POS.UnitTests.csproj --configuration Release
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "ut" || STAGE == "all"
 
   build-frontend:
     image: node:24 
@@ -38,10 +32,7 @@ steps:
       - npm ci
       - npm run build --prod
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "build" || STAGE == "all"
 
   ut-frontend:
     image: node:24
@@ -53,10 +44,7 @@ steps:
       - echo "Running Test Stage"
       - npm test --watch=false 
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "ut" || STAGE == "all"
 
   api-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -67,10 +55,7 @@ steps:
       - echo "Running API Tests"
       - dotnet test POS.ApiTests/POS.ApiTests.csproj --configuration Release
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "api" || STAGE == "all"
 
   integration-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -81,10 +66,7 @@ steps:
       - echo "Running Integration Tests"
       - dotnet test POS.IntegrationTests/POS.IntegrationTests.csproj --configuration Release
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "integration" || STAGE == "all"
 
   docker-push:
     image: docker:24
@@ -104,10 +86,7 @@ steps:
       DOCKER_PASSWORD:
         from_secret: docker_password
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "push" || STAGE == "all"
 
   test-migrate:
     image: docker:24
@@ -125,10 +104,7 @@ steps:
       - docker compose pull
       - docker compose run --rm migrate
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "test-migrate" || STAGE == "all"
 
   test-deploy:
     image: docker:24
@@ -145,10 +121,7 @@ steps:
       - cd $CI_WORKSPACE
       - docker compose up -d --force-recreate --pull always --remove-orphans
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "test-deploy" || STAGE == "all"
 
   e2e-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -162,7 +135,4 @@ steps:
       - echo "Running E2E Tests"
       - dotnet test POS.E2ETests/POS.E2ETests.csproj --configuration Release
     when:
-      - event: push
-        evaluate: CI_COMMIT_BRANCH == "master"
       - event: manual
-        evaluate: STAGE == "e2e" || STAGE == "all"

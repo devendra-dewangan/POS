@@ -10,8 +10,6 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "build" || STAGE == "all" 
   
         
   ut-backend:
@@ -25,8 +23,6 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "ut" || STAGE == "all"
 
   build-frontend:
     image: node:24 
@@ -40,8 +36,6 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "build" || STAGE == "all"
 
   ut-frontend:
     image: node:24
@@ -106,8 +100,6 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "push" || STAGE == "all"
 
   test-migrate:
     image: docker:24
@@ -147,8 +139,6 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "test-deploy" || STAGE == "all"
 
   e2e-tests:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -164,5 +154,3 @@ steps:
     when:
       - event: push
         evaluate: CI_COMMIT_BRANCH == "master"
-      - event: manual
-        evaluate: STAGE == "e2e" || STAGE == "all"
